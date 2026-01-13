@@ -26,6 +26,7 @@ export class DiskRenderer {
   private positionLoc: number;
   private instanceRootLoc: number;
   private instanceRadiusLoc: number;
+  private instanceDiscriminantLoc: number;
 
   // Uniform locations
   private centerLoc: WebGLUniformLocation;
@@ -40,6 +41,7 @@ export class DiskRenderer {
     this.positionLoc = gl.getAttribLocation(this.program, 'a_position');
     this.instanceRootLoc = gl.getAttribLocation(this.program, 'a_instanceRoot');
     this.instanceRadiusLoc = gl.getAttribLocation(this.program, 'a_instanceRadius');
+    this.instanceDiscriminantLoc = gl.getAttribLocation(this.program, 'a_instanceDiscriminant');
 
     // Get uniform locations
     this.centerLoc = gl.getUniformLocation(this.program, 'u_center')!;
@@ -76,12 +78,12 @@ export class DiskRenderer {
 
   /**
    * Bind a root buffer for rendering.
-   * Root buffer format: [re, im, radius, re, im, radius, ...]
-   * (3 floats per root, interleaved)
+   * Root buffer format: [re, im, radius, discriminant, re, im, radius, discriminant, ...]
+   * (4 floats per root, interleaved)
    */
   bindRootBuffer(rootBuffer: RootBuffer): void {
     const gl = this.gl;
-    const stride = 3 * 4; // 3 floats * 4 bytes
+    const stride = 4 * 4; // 4 floats * 4 bytes
 
     gl.bindVertexArray(this.vao);
 
@@ -96,6 +98,11 @@ export class DiskRenderer {
     gl.enableVertexAttribArray(this.instanceRadiusLoc);
     gl.vertexAttribPointer(this.instanceRadiusLoc, 1, gl.FLOAT, false, stride, 8);
     gl.vertexAttribDivisor(this.instanceRadiusLoc, 1); // per-instance
+
+    // instanceDiscriminant: float at offset 12
+    gl.enableVertexAttribArray(this.instanceDiscriminantLoc);
+    gl.vertexAttribPointer(this.instanceDiscriminantLoc, 1, gl.FLOAT, false, stride, 12);
+    gl.vertexAttribDivisor(this.instanceDiscriminantLoc, 1); // per-instance
 
     gl.bindVertexArray(null);
   }
@@ -113,9 +120,9 @@ export class DiskRenderer {
     gl.uniform1f(this.scaleLoc, camera.scale);
     gl.uniform2f(this.resolutionLoc, resolution[0], resolution[1]);
 
-    // Enable additive blending
+    // Standard alpha blending for dark dots on light background
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     // Draw instanced quads
     gl.bindVertexArray(this.vao);
@@ -135,7 +142,7 @@ export class DiskRenderer {
 
 /**
  * Create a root buffer from raw data.
- * Data format: [re, im, radius, re, im, radius, ...]
+ * Data format: [re, im, radius, discriminant, ...]
  */
 export function createRootBuffer(
   gl: WebGL2RenderingContext,
@@ -144,6 +151,6 @@ export function createRootBuffer(
   const buffer = createBuffer(gl, data, gl.STATIC_DRAW);
   return {
     buffer,
-    count: data.length / 3,
+    count: data.length / 4,
   };
 }

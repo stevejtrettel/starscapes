@@ -18,8 +18,8 @@ function main() {
   resizeCanvasToDisplaySize(canvas);
   gl.viewport(0, 0, canvas.width, canvas.height);
 
-  // Set clear color to dark background
-  gl.clearColor(0.0, 0.0, 0.05, 1.0);
+  // Set clear color to light background
+  gl.clearColor(0.95, 0.95, 0.95, 1.0);
 
   // Create components
   const diskRenderer = new DiskRenderer(gl);

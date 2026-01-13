@@ -3,9 +3,10 @@
 // Input: coefficients (a, b, c) for ax² + bx + c
 in vec3 a_coefficients;
 
-// Output: root position and radius (for transform feedback)
+// Output: root position, radius, and discriminant (for transform feedback)
 out vec2 v_root;
 out float v_radius;
+out float v_discriminant;
 
 // Radius scale factor
 uniform float u_radiusScale;
@@ -22,6 +23,7 @@ void main() {
         // Real roots or invalid polynomial - skip
         v_root = vec2(0.0);
         v_radius = 0.0;
+        v_discriminant = 0.0;
     } else {
         // Complex conjugate roots
         // z = (-b ± i√(-Δ)) / (2a)
@@ -30,10 +32,8 @@ void main() {
         float im = sqrt(-discriminant) / abs(twoA);
 
         v_root = vec2(re, im);
-
-        // Radius depends on both imaginary part and discriminant
-        // sqrt(-discriminant) captures the "spread" of the roots
-        v_radius = u_radiusScale * im * sqrt(-discriminant);
+        v_radius = u_radiusScale * im / abs(discriminant);
+        v_discriminant = discriminant;
     }
 
     // Position is unused (RASTERIZER_DISCARD)

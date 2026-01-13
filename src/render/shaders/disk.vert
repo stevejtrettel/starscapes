@@ -6,6 +6,7 @@ in vec2 a_position;
 // Per-instance attributes (from root buffer)
 in vec2 a_instanceRoot;
 in float a_instanceRadius;
+in float a_instanceDiscriminant;
 
 // Camera uniforms
 uniform vec2 u_center;
@@ -14,9 +15,11 @@ uniform vec2 u_resolution;
 
 // Output to fragment shader
 out vec2 v_localPos;
+out float v_discriminant;
 
 void main() {
     v_localPos = a_position;
+    v_discriminant = a_instanceDiscriminant;
 
     // Skip if radius is zero/negative (invalid root)
     if (a_instanceRadius <= 0.0) {

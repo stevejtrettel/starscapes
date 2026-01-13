@@ -33,7 +33,7 @@ export class QuadraticSolver {
       gl,
       solveVertSource,
       passFragSource,
-      ['v_root', 'v_radius'],
+      ['v_root', 'v_radius', 'v_discriminant'],
       gl.INTERLEAVED_ATTRIBS
     );
 
@@ -63,8 +63,8 @@ export class QuadraticSolver {
     const gl = this.gl;
 
     // Ensure output buffer is large enough
-    // Output: 3 floats per root (re, im, radius)
-    const requiredBytes = count * 3 * 4;
+    // Output: 4 floats per root (re, im, radius, discriminant)
+    const requiredBytes = count * 4 * 4;
     if (this.outputCapacity < requiredBytes) {
       if (this.outputBuffer) {
         gl.deleteBuffer(this.outputBuffer);
