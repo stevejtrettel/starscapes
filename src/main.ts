@@ -1,7 +1,7 @@
 import './style.css';
 import { createContext, resizeCanvasToDisplaySize } from './gl';
-import { DiskRenderer, createRootBuffer, type Camera } from './render/diskRenderer';
-import { CONFIG } from './config';
+import { DiskRenderer, createRootBuffer } from './render/diskRenderer';
+import { Camera } from './camera';
 
 function main() {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -41,11 +41,8 @@ function main() {
   const rootBuffer = createRootBuffer(gl, testRoots);
   diskRenderer.bindRootBuffer(rootBuffer);
 
-  // Camera state
-  const camera: Camera = {
-    center: [...CONFIG.CAMERA.INITIAL_CENTER],
-    scale: CONFIG.CAMERA.INITIAL_SCALE,
-  };
+  // Create interactive camera
+  const camera = new Camera(canvas);
 
   function render() {
     // Handle resize
@@ -57,8 +54,8 @@ function main() {
     // Clear
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Render disks
-    diskRenderer.render(rootBuffer, camera, [width, height]);
+    // Render disks with current camera state
+    diskRenderer.render(rootBuffer, camera.getState(), [width, height]);
 
     requestAnimationFrame(render);
   }
@@ -68,6 +65,7 @@ function main() {
   console.log('Polynomial Root Visualizer initialized');
   console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
   console.log(`Rendering ${rootBuffer.count} test disks`);
+  console.log('Controls: drag to pan, scroll to zoom');
 }
 
 main();
