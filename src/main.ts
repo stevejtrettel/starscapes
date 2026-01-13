@@ -1,7 +1,10 @@
 import './style.css';
 import { createContext, resizeCanvasToDisplaySize } from './gl';
-import { DiskRenderer, createRootBuffer } from './render/diskRenderer';
+import { DiskRenderer } from './render/diskRenderer';
+import { QuadraticSolver } from './solver/quadraticSolver';
+import { IntegerQuadraticFamily } from './families/integerQuadratic';
 import { Camera } from './camera';
+import { CONFIG } from './config';
 
 function main() {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -18,31 +21,39 @@ function main() {
   // Set clear color to dark background
   gl.clearColor(0.0, 0.0, 0.05, 1.0);
 
-  // Create disk renderer
+  // Create components
   const diskRenderer = new DiskRenderer(gl);
+  const solver = new QuadraticSolver(gl);
+  const family = new IntegerQuadraticFamily();
 
-  // Create some test disks
-  // Format: [re, im, radius, re, im, radius, ...]
-  // prettier-ignore
-  const testRoots = new Float32Array([
-    // A few disks at various positions in the upper half-plane
-     0.0, 1.0, 0.5,   // center disk
-    -2.0, 1.5, 0.3,   // left
-     2.0, 1.5, 0.3,   // right
-     0.0, 3.0, 0.8,   // top center
-    -1.0, 0.5, 0.2,   // lower left
-     1.0, 0.5, 0.2,   // lower right
-    -3.0, 2.0, 0.4,   // far left
-     3.0, 2.0, 0.4,   // far right
-     0.0, 0.3, 0.1,   // very close to axis (small)
-     0.0, 5.0, 1.0,   // high up (large)
-  ]);
+  // Generate coefficients
+  const totalPolynomials = family.getTotalCount();
+  const polynomialCount = Math.min(totalPolynomials, CONFIG.MAX_POLYNOMIAL_COUNT);
 
-  const rootBuffer = createRootBuffer(gl, testRoots);
+  console.log(`Generating ${polynomialCount.toLocaleString()} polynomials...`);
+
+  const coefficients = new Float32Array(polynomialCount * family.coefficientCount);
+  const actualCount = family.generate(coefficients, polynomialCount);
+
+  console.log(`Generated ${actualCount.toLocaleString()} polynomials`);
+
+  // Solve for roots on GPU
+  console.log('Solving for roots...');
+  const startTime = performance.now();
+  const rootBuffer = solver.solveFromArray(coefficients);
+  const solveTime = performance.now() - startTime;
+
+  console.log(`Solved in ${solveTime.toFixed(1)}ms`);
+
+  // Bind root buffer for rendering
   diskRenderer.bindRootBuffer(rootBuffer);
 
   // Create interactive camera
   const camera = new Camera(canvas);
+
+  // FPS tracking
+  let frameCount = 0;
+  let lastFpsTime = performance.now();
 
   function render() {
     // Handle resize
@@ -57,14 +68,23 @@ function main() {
     // Render disks with current camera state
     diskRenderer.render(rootBuffer, camera.getState(), [width, height]);
 
+    // FPS counter
+    frameCount++;
+    const now = performance.now();
+    if (now - lastFpsTime >= 1000) {
+      const fps = frameCount / ((now - lastFpsTime) / 1000);
+      document.title = `Polynomial Roots | ${fps.toFixed(0)} FPS`;
+      frameCount = 0;
+      lastFpsTime = now;
+    }
+
     requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
 
   console.log('Polynomial Root Visualizer initialized');
-  console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-  console.log(`Rendering ${rootBuffer.count} test disks`);
+  console.log(`Rendering ${rootBuffer.count.toLocaleString()} roots`);
   console.log('Controls: drag to pan, scroll to zoom');
 }
 
