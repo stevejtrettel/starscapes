@@ -1,8 +1,8 @@
 import './style.css';
 import { createContext, resizeCanvasToDisplaySize } from './gl';
 import { DiskRenderer } from './render/diskRenderer';
-import { QuadraticSolver } from './solver/quadraticSolver';
-import { IntegerQuadraticFamily } from './families/integerQuadratic';
+import { CubicSolver } from './solver/cubicSolver';
+import { MonicCubicFamily } from './families/monicCubic';
 import { Camera } from './camera';
 import { CONFIG } from './config';
 
@@ -23,13 +23,14 @@ function main() {
 
   // Create components
   const diskRenderer = new DiskRenderer(gl);
-  const solver = new QuadraticSolver(gl);
-  const family = new IntegerQuadraticFamily();
+  const solver = new CubicSolver(gl);
+  const family = new MonicCubicFamily();
 
   // Generate coefficients
   const totalPolynomials = family.getTotalCount();
   const polynomialCount = Math.min(totalPolynomials, CONFIG.MAX_POLYNOMIAL_COUNT);
 
+  console.log(`Family: ${family.name}`);
   console.log(`Generating ${polynomialCount.toLocaleString()} polynomials...`);
 
   const coefficients = new Float32Array(polynomialCount * family.coefficientCount);
