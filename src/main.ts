@@ -51,6 +51,16 @@ function main() {
   // Create interactive camera
   const camera = new Camera(canvas);
 
+  // Set up discriminant slider
+  const slider = document.getElementById('discriminant-slider') as HTMLInputElement;
+  const valueDisplay = document.getElementById('discriminant-value') as HTMLSpanElement;
+  let highlightDiscriminant = parseFloat(slider.value);
+
+  slider.addEventListener('input', () => {
+    highlightDiscriminant = parseFloat(slider.value);
+    valueDisplay.textContent = slider.value;
+  });
+
   // FPS tracking
   let frameCount = 0;
   let lastFpsTime = performance.now();
@@ -65,8 +75,8 @@ function main() {
     // Clear
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Render disks with current camera state
-    diskRenderer.render(rootBuffer, camera.getState(), [width, height]);
+    // Render disks with current camera state and highlight value
+    diskRenderer.render(rootBuffer, camera.getState(), [width, height], highlightDiscriminant);
 
     // FPS counter
     frameCount++;
@@ -85,7 +95,7 @@ function main() {
 
   console.log('Polynomial Root Visualizer initialized');
   console.log(`Rendering ${rootBuffer.count.toLocaleString()} roots`);
-  console.log('Controls: drag to pan, scroll to zoom');
+  console.log('Controls: drag to pan, scroll to zoom, slider to highlight discriminant');
 }
 
 main();

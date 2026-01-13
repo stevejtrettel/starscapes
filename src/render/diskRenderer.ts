@@ -32,6 +32,7 @@ export class DiskRenderer {
   private centerLoc: WebGLUniformLocation;
   private scaleLoc: WebGLUniformLocation;
   private resolutionLoc: WebGLUniformLocation;
+  private highlightDiscriminantLoc: WebGLUniformLocation;
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -47,6 +48,7 @@ export class DiskRenderer {
     this.centerLoc = gl.getUniformLocation(this.program, 'u_center')!;
     this.scaleLoc = gl.getUniformLocation(this.program, 'u_scale')!;
     this.resolutionLoc = gl.getUniformLocation(this.program, 'u_resolution')!;
+    this.highlightDiscriminantLoc = gl.getUniformLocation(this.program, 'u_highlightDiscriminant')!;
 
     // Create unit quad (two triangles)
     // prettier-ignore
@@ -110,7 +112,12 @@ export class DiskRenderer {
   /**
    * Render all disks with the given camera settings.
    */
-  render(rootBuffer: RootBuffer, camera: Camera, resolution: [number, number]): void {
+  render(
+    rootBuffer: RootBuffer,
+    camera: Camera,
+    resolution: [number, number],
+    highlightDiscriminant: number
+  ): void {
     const gl = this.gl;
 
     gl.useProgram(this.program);
@@ -119,6 +126,7 @@ export class DiskRenderer {
     gl.uniform2f(this.centerLoc, camera.center[0], camera.center[1]);
     gl.uniform1f(this.scaleLoc, camera.scale);
     gl.uniform2f(this.resolutionLoc, resolution[0], resolution[1]);
+    gl.uniform1f(this.highlightDiscriminantLoc, highlightDiscriminant);
 
     // Standard alpha blending for dark dots on light background
     gl.enable(gl.BLEND);
