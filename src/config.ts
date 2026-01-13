@@ -14,7 +14,7 @@ export const CONFIG = {
   },
 
   // Disk rendering
-  RADIUS_SCALE: 0.1, // Multiplier for radius = RADIUS_SCALE * im
+  RADIUS_SCALE: 0.02, // Multiplier for radius = RADIUS_SCALE * im
 
   // Camera defaults
   CAMERA: {
