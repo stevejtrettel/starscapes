@@ -82,8 +82,8 @@ void main() {
     v_root = vec2(re, im);
     v_discriminant = discriminant;
 
-    // Use simpler radius formula for cubics (discriminant is much larger)
-    v_radius = u_radiusScale * im;
+    // Compress discriminant range with sqrt for more reasonable radius variation
+    v_radius = u_radiusScale * im / sqrt(abs(discriminant));
 
     gl_Position = vec4(0.0);
 }

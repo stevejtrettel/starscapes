@@ -14,7 +14,9 @@ export const CONFIG = {
   },
 
   // Disk rendering
-  RADIUS_SCALE: 0.5, // Multiplier for radius = RADIUS_SCALE * im / abs(Δ)
+  // For cubics: radius = RADIUS_SCALE * im / sqrt(|Δ|)
+  // For quadratics: radius = RADIUS_SCALE * im / |Δ|
+  RADIUS_SCALE: 10, // Increased for cubic discriminant range
 
   // Camera defaults
   CAMERA: {
