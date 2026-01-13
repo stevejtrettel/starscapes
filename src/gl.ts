@@ -120,7 +120,7 @@ export function createProgramWithTransformFeedback(
  */
 export function createBuffer(
   gl: WebGL2RenderingContext,
-  data: BufferSource | null,
+  data: AllowSharedBufferSource | null,
   usage: number = gl.STATIC_DRAW
 ): WebGLBuffer {
   const buffer = gl.createBuffer();
