@@ -1,24 +1,40 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.ts'
+import './style.css';
+import { createContext, resizeCanvasToDisplaySize } from './gl';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+function main() {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  if (!canvas) {
+    throw new Error('Canvas element not found');
+  }
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+  const gl = createContext(canvas);
+
+  // Initial resize
+  resizeCanvasToDisplaySize(canvas);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+
+  // Set clear color to dark background
+  gl.clearColor(0.0, 0.0, 0.05, 1.0);
+
+  function render() {
+    // Handle resize
+    const { resized } = resizeCanvasToDisplaySize(canvas);
+    if (resized) {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+
+    // Clear
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // TODO: Render disks here
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+
+  console.log('Polynomial Root Visualizer initialized');
+  console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
+}
+
+main();
