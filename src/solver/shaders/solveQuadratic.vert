@@ -31,9 +31,9 @@ void main() {
 
         v_root = vec2(re, im);
 
-        // Radius proportional to imaginary part
-        // Roots near real axis get smaller disks
-        v_radius = u_radiusScale * im;
+        // Radius depends on both imaginary part and discriminant
+        // sqrt(-discriminant) captures the "spread" of the roots
+        v_radius = u_radiusScale * im * sqrt(-discriminant);
     }
 
     // Position is unused (RASTERIZER_DISCARD)
