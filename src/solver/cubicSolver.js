@@ -1,31 +1,17 @@
-import { createProgramWithTransformFeedback, createBuffer, createEmptyBuffer } from '../gl';
-import { CONFIG } from '../config';
-import type { RootBuffer } from '../render/diskRenderer';
+import { createProgramWithTransformFeedback, createBuffer, createEmptyBuffer } from '../gl.js';
+import { CONFIG } from '../config.js';
 
-import solveVertSource from './shaders/solveQuadratic.vert?raw';
+import solveVertSource from './shaders/solveCubic.vert?raw';
 import passFragSource from './shaders/passthrough.frag?raw';
 
 /**
- * GPU-based quadratic polynomial root solver using transform feedback.
- * Takes coefficient buffers and produces root buffers.
+ * GPU-based cubic polynomial root solver using transform feedback.
+ * Uses Cardano's formula to find complex roots.
+ *
+ * Implements the Solver interface (see solver/types.js for documentation).
  */
-export class QuadraticSolver {
-  private gl: WebGL2RenderingContext;
-  private program: WebGLProgram;
-  private transformFeedback: WebGLTransformFeedback;
-  private vao: WebGLVertexArrayObject;
-
-  // Attribute location
-  private coefficientsLoc: number;
-
-  // Uniform location
-  private radiusScaleLoc: WebGLUniformLocation;
-
-  // Output buffer (reused across solve calls)
-  private outputBuffer: WebGLBuffer | null = null;
-  private outputCapacity = 0;
-
-  constructor(gl: WebGL2RenderingContext) {
+export class CubicSolver {
+  constructor(gl) {
     this.gl = gl;
 
     // Create program with transform feedback varyings
@@ -39,27 +25,29 @@ export class QuadraticSolver {
 
     // Get locations
     this.coefficientsLoc = gl.getAttribLocation(this.program, 'a_coefficients');
-    this.radiusScaleLoc = gl.getUniformLocation(this.program, 'u_radiusScale')!;
+    this.radiusScaleLoc = gl.getUniformLocation(this.program, 'u_radiusScale');
 
     // Create transform feedback object
-    const tf = gl.createTransformFeedback();
-    if (!tf) throw new Error('Failed to create transform feedback');
-    this.transformFeedback = tf;
+    this.transformFeedback = gl.createTransformFeedback();
+    if (!this.transformFeedback) throw new Error('Failed to create transform feedback');
 
     // Create VAO
-    const vao = gl.createVertexArray();
-    if (!vao) throw new Error('Failed to create VAO');
-    this.vao = vao;
+    this.vao = gl.createVertexArray();
+    if (!this.vao) throw new Error('Failed to create VAO');
+
+    // Output buffer (reused across solve calls)
+    this.outputBuffer = null;
+    this.outputCapacity = 0;
   }
 
   /**
-   * Solve for roots of quadratic polynomials.
+   * Solve for roots of cubic polynomials.
    *
-   * @param coefficientBuffer Buffer containing coefficients [a, b, c, a, b, c, ...]
+   * @param coefficientBuffer Buffer containing coefficients [a, b, c, d, a, b, c, d, ...]
    * @param count Number of polynomials
    * @returns RootBuffer with solved roots
    */
-  solve(coefficientBuffer: WebGLBuffer, count: number): RootBuffer {
+  solve(coefficientBuffer, count) {
     const gl = this.gl;
 
     // Ensure output buffer is large enough
@@ -78,7 +66,7 @@ export class QuadraticSolver {
     gl.bindVertexArray(this.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, coefficientBuffer);
     gl.enableVertexAttribArray(this.coefficientsLoc);
-    gl.vertexAttribPointer(this.coefficientsLoc, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(this.coefficientsLoc, 4, gl.FLOAT, false, 0, 0); // 4 floats for cubic
     gl.bindVertexArray(null);
 
     // Use program
@@ -105,7 +93,7 @@ export class QuadraticSolver {
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
 
     return {
-      buffer: this.outputBuffer!,
+      buffer: this.outputBuffer,
       count,
     };
   }
@@ -114,9 +102,9 @@ export class QuadraticSolver {
    * Solve polynomials from a Float32Array of coefficients.
    * Convenience method that handles buffer creation.
    */
-  solveFromArray(coefficients: Float32Array): RootBuffer {
+  solveFromArray(coefficients) {
     const gl = this.gl;
-    const count = coefficients.length / 3;
+    const count = coefficients.length / 4; // 4 coefficients per cubic
 
     // Create coefficient buffer
     const coeffBuffer = createBuffer(gl, coefficients, gl.STREAM_DRAW);
@@ -130,7 +118,7 @@ export class QuadraticSolver {
     return result;
   }
 
-  dispose(): void {
+  dispose() {
     const gl = this.gl;
     gl.deleteProgram(this.program);
     gl.deleteTransformFeedback(this.transformFeedback);

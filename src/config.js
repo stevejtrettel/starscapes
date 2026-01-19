@@ -16,14 +16,14 @@ export const CONFIG = {
   // Disk rendering
   // For cubics: radius = RADIUS_SCALE * im / sqrt(|Δ|)
   // For quadratics: radius = RADIUS_SCALE * im / |Δ|
-  RADIUS_SCALE: 10, // Increased for cubic discriminant range
+  RADIUS_SCALE: 10,
 
   // Camera defaults
   CAMERA: {
-    INITIAL_CENTER: [0, 1] as [number, number],
+    INITIAL_CENTER: [0, 1],
     INITIAL_SCALE: 10, // Units visible in smaller viewport dimension
     ZOOM_SPEED: 1.1,
     MIN_SCALE: 0.001,
     MAX_SCALE: 1000,
   },
-} as const;
+};

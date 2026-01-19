@@ -1,9 +1,9 @@
 // WebGL2 utilities
 
 /**
- * Initialize WebGL2 context from a canvas element
+ * Initialize WebGL2 context from a canvas element.
  */
-export function createContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
+export function createContext(canvas) {
   const gl = canvas.getContext('webgl2', {
     alpha: false,
     antialias: false,
@@ -20,13 +20,9 @@ export function createContext(canvas: HTMLCanvasElement): WebGL2RenderingContext
 }
 
 /**
- * Compile a shader from source
+ * Compile a shader from source.
  */
-export function compileShader(
-  gl: WebGL2RenderingContext,
-  type: number,
-  source: string
-): WebGLShader {
+export function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
   if (!shader) {
     throw new Error('Failed to create shader');
@@ -45,13 +41,9 @@ export function compileShader(
 }
 
 /**
- * Create a program from vertex and fragment shader sources
+ * Create a program from vertex and fragment shader sources.
  */
-export function createProgram(
-  gl: WebGL2RenderingContext,
-  vertexSource: string,
-  fragmentSource: string
-): WebGLProgram {
+export function createProgram(gl, vertexSource, fragmentSource) {
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
   const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
 
@@ -78,15 +70,9 @@ export function createProgram(
 }
 
 /**
- * Create a program with transform feedback varyings
+ * Create a program with transform feedback varyings.
  */
-export function createProgramWithTransformFeedback(
-  gl: WebGL2RenderingContext,
-  vertexSource: string,
-  fragmentSource: string,
-  varyings: string[],
-  bufferMode: number = gl.INTERLEAVED_ATTRIBS
-): WebGLProgram {
+export function createProgramWithTransformFeedback(gl, vertexSource, fragmentSource, varyings, bufferMode = gl.INTERLEAVED_ATTRIBS) {
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
   const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
 
@@ -116,13 +102,9 @@ export function createProgramWithTransformFeedback(
 }
 
 /**
- * Create and populate a buffer
+ * Create and populate a buffer.
  */
-export function createBuffer(
-  gl: WebGL2RenderingContext,
-  data: AllowSharedBufferSource | null,
-  usage: number = gl.STATIC_DRAW
-): WebGLBuffer {
+export function createBuffer(gl, data, usage = gl.STATIC_DRAW) {
   const buffer = gl.createBuffer();
   if (!buffer) {
     throw new Error('Failed to create buffer');
@@ -135,13 +117,9 @@ export function createBuffer(
 }
 
 /**
- * Create an empty buffer with specified size
+ * Create an empty buffer with specified size.
  */
-export function createEmptyBuffer(
-  gl: WebGL2RenderingContext,
-  byteSize: number,
-  usage: number = gl.DYNAMIC_DRAW
-): WebGLBuffer {
+export function createEmptyBuffer(gl, byteSize, usage = gl.DYNAMIC_DRAW) {
   const buffer = gl.createBuffer();
   if (!buffer) {
     throw new Error('Failed to create buffer');
@@ -154,11 +132,9 @@ export function createEmptyBuffer(
 }
 
 /**
- * Resize canvas to match display size and return dimensions
+ * Resize canvas to match display size and return dimensions.
  */
-export function resizeCanvasToDisplaySize(
-  canvas: HTMLCanvasElement
-): { width: number; height: number; resized: boolean } {
+export function resizeCanvasToDisplaySize(canvas) {
   const displayWidth = canvas.clientWidth;
   const displayHeight = canvas.clientHeight;
 

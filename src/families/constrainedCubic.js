@@ -1,20 +1,18 @@
-import type { PolynomialFamily } from './types';
-import { CONFIG } from '../config';
+import { CONFIG } from '../config.js';
 
 /**
  * Generates constrained cubic polynomials ax³ + bx² + cx + b
  * where the constant term equals the x² coefficient.
  * Parameters: a, b, c are integers in a specified range (a ≠ 0).
+ *
+ * Implements the PolynomialFamily interface (see families/types.js).
  */
-export class ConstrainedCubicFamily implements PolynomialFamily {
-  readonly name = 'Constrained Cubics (ax³ + bx² + cx + b)';
-  readonly degree = 3;
-  readonly coefficientCount = 4; // [a, b, c, b] but we store [a, b, c, d] where d=b
+export class ConstrainedCubicFamily {
+  name = 'Constrained Cubics (ax³ + bx² + cx + b)';
+  degree = 3;
+  coefficientCount = 4; // [a, b, c, b] but we store [a, b, c, d] where d=b
 
-  private min: number;
-  private max: number;
-
-  constructor(min?: number, max?: number) {
+  constructor(min, max) {
     this.min = min ?? CONFIG.COEFFICIENT_RANGE.MIN;
     this.max = max ?? CONFIG.COEFFICIENT_RANGE.MAX;
   }
@@ -23,7 +21,7 @@ export class ConstrainedCubicFamily implements PolynomialFamily {
    * Generate constrained cubic polynomials.
    * Format: [a, b, c, b] for ax³ + bx² + cx + b
    */
-  generate(output: Float32Array, maxCount: number): number {
+  generate(output, maxCount) {
     const { min, max } = this;
     let index = 0;
 
@@ -49,7 +47,7 @@ export class ConstrainedCubicFamily implements PolynomialFamily {
   /**
    * Calculate total number of polynomials that would be generated.
    */
-  getTotalCount(): number {
+  getTotalCount() {
     const range = this.max - this.min + 1;
     // a can be anything except 0, b and c are free
     const aCount = range - (this.min <= 0 && this.max >= 0 ? 1 : 0);

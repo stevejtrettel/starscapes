@@ -1,40 +1,16 @@
-import { createProgram, createBuffer } from '../gl';
+import { createProgram, createBuffer } from '../gl.js';
 import diskVertSource from './shaders/disk.vert?raw';
 import diskFragSource from './shaders/disk.frag?raw';
-
-export interface RootBuffer {
-  buffer: WebGLBuffer;
-  count: number;
-}
-
-export interface Camera {
-  center: [number, number];
-  scale: number;
-}
 
 /**
  * Renders disks using instanced quads.
  * Each instance is positioned by (root.x, root.y) with a given radius.
+ *
+ * RootBuffer format: { buffer: WebGLBuffer, count: number }
+ * Camera format: { center: [x, y], scale: number }
  */
 export class DiskRenderer {
-  private gl: WebGL2RenderingContext;
-  private program: WebGLProgram;
-  private vao: WebGLVertexArrayObject;
-  private quadBuffer: WebGLBuffer;
-
-  // Attribute locations
-  private positionLoc: number;
-  private instanceRootLoc: number;
-  private instanceRadiusLoc: number;
-  private instanceDiscriminantLoc: number;
-
-  // Uniform locations
-  private centerLoc: WebGLUniformLocation;
-  private scaleLoc: WebGLUniformLocation;
-  private resolutionLoc: WebGLUniformLocation;
-  private highlightDiscriminantLoc: WebGLUniformLocation;
-
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl) {
     this.gl = gl;
     this.program = createProgram(gl, diskVertSource, diskFragSource);
 
@@ -45,13 +21,12 @@ export class DiskRenderer {
     this.instanceDiscriminantLoc = gl.getAttribLocation(this.program, 'a_instanceDiscriminant');
 
     // Get uniform locations
-    this.centerLoc = gl.getUniformLocation(this.program, 'u_center')!;
-    this.scaleLoc = gl.getUniformLocation(this.program, 'u_scale')!;
-    this.resolutionLoc = gl.getUniformLocation(this.program, 'u_resolution')!;
-    this.highlightDiscriminantLoc = gl.getUniformLocation(this.program, 'u_highlightDiscriminant')!;
+    this.centerLoc = gl.getUniformLocation(this.program, 'u_center');
+    this.scaleLoc = gl.getUniformLocation(this.program, 'u_scale');
+    this.resolutionLoc = gl.getUniformLocation(this.program, 'u_resolution');
+    this.highlightDiscriminantLoc = gl.getUniformLocation(this.program, 'u_highlightDiscriminant');
 
     // Create unit quad (two triangles)
-    // prettier-ignore
     const quadVertices = new Float32Array([
       -1, -1,
        1, -1,
@@ -63,9 +38,8 @@ export class DiskRenderer {
     this.quadBuffer = createBuffer(gl, quadVertices);
 
     // Create VAO
-    const vao = gl.createVertexArray();
-    if (!vao) throw new Error('Failed to create VAO');
-    this.vao = vao;
+    this.vao = gl.createVertexArray();
+    if (!this.vao) throw new Error('Failed to create VAO');
 
     gl.bindVertexArray(this.vao);
 
@@ -73,7 +47,6 @@ export class DiskRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(this.positionLoc);
     gl.vertexAttribPointer(this.positionLoc, 2, gl.FLOAT, false, 0, 0);
-    // divisor = 0 means per-vertex (default)
 
     gl.bindVertexArray(null);
   }
@@ -83,7 +56,7 @@ export class DiskRenderer {
    * Root buffer format: [re, im, radius, discriminant, re, im, radius, discriminant, ...]
    * (4 floats per root, interleaved)
    */
-  bindRootBuffer(rootBuffer: RootBuffer): void {
+  bindRootBuffer(rootBuffer) {
     const gl = this.gl;
     const stride = 4 * 4; // 4 floats * 4 bytes
 
@@ -112,12 +85,7 @@ export class DiskRenderer {
   /**
    * Render all disks with the given camera settings.
    */
-  render(
-    rootBuffer: RootBuffer,
-    camera: Camera,
-    resolution: [number, number],
-    highlightDiscriminant: number
-  ): void {
+  render(rootBuffer, camera, resolution, highlightDiscriminant) {
     const gl = this.gl;
 
     gl.useProgram(this.program);
@@ -140,7 +108,7 @@ export class DiskRenderer {
     gl.disable(gl.BLEND);
   }
 
-  dispose(): void {
+  dispose() {
     const gl = this.gl;
     gl.deleteProgram(this.program);
     gl.deleteBuffer(this.quadBuffer);
@@ -152,10 +120,7 @@ export class DiskRenderer {
  * Create a root buffer from raw data.
  * Data format: [re, im, radius, discriminant, ...]
  */
-export function createRootBuffer(
-  gl: WebGL2RenderingContext,
-  data: Float32Array
-): RootBuffer {
+export function createRootBuffer(gl, data) {
   const buffer = createBuffer(gl, data, gl.STATIC_DRAW);
   return {
     buffer,

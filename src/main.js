@@ -1,13 +1,13 @@
 import './style.css';
-import { createContext, resizeCanvasToDisplaySize } from './gl';
-import { DiskRenderer } from './render/diskRenderer';
-import { CubicSolver } from './solver/cubicSolver';
-import { MonicCubicFamily } from './families/monicCubic';
-import { Camera } from './camera';
-import { CONFIG } from './config';
+import { createContext, resizeCanvasToDisplaySize } from './gl.js';
+import { DiskRenderer } from './render/diskRenderer.js';
+import { CubicSolver } from './solver/cubicSolver.js';
+import { MonicCubicFamily } from './families/monicCubic.js';
+import { Camera } from './camera.js';
+import { CONFIG } from './config.js';
 
 function main() {
-  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  const canvas = document.getElementById('canvas');
   if (!canvas) {
     throw new Error('Canvas element not found');
   }
@@ -53,8 +53,8 @@ function main() {
   const camera = new Camera(canvas);
 
   // Set up discriminant slider
-  const slider = document.getElementById('discriminant-slider') as HTMLInputElement;
-  const valueDisplay = document.getElementById('discriminant-value') as HTMLSpanElement;
+  const slider = document.getElementById('discriminant-slider');
+  const valueDisplay = document.getElementById('discriminant-value');
   let highlightDiscriminant = parseFloat(slider.value);
 
   slider.addEventListener('input', () => {

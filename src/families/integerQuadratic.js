@@ -1,19 +1,17 @@
-import type { PolynomialFamily } from './types';
-import { CONFIG } from '../config';
+import { CONFIG } from '../config.js';
 
 /**
  * Generates quadratic polynomials ax² + bx + c
  * where a, b, c are integers in a specified range.
+ *
+ * Implements the PolynomialFamily interface (see families/types.js).
  */
-export class IntegerQuadraticFamily implements PolynomialFamily {
-  readonly name = 'Integer Quadratics';
-  readonly degree = 2;
-  readonly coefficientCount = 3;
+export class IntegerQuadraticFamily {
+  name = 'Integer Quadratics';
+  degree = 2;
+  coefficientCount = 3;
 
-  private min: number;
-  private max: number;
-
-  constructor(min?: number, max?: number) {
+  constructor(min, max) {
     this.min = min ?? CONFIG.COEFFICIENT_RANGE.MIN;
     this.max = max ?? CONFIG.COEFFICIENT_RANGE.MAX;
   }
@@ -22,7 +20,7 @@ export class IntegerQuadraticFamily implements PolynomialFamily {
    * Generate all integer coefficient quadratics in the range.
    * Skips a = 0 (not a quadratic).
    */
-  generate(output: Float32Array, maxCount: number): number {
+  generate(output, maxCount) {
     const { min, max } = this;
     let index = 0;
 
@@ -47,7 +45,7 @@ export class IntegerQuadraticFamily implements PolynomialFamily {
   /**
    * Calculate total number of polynomials that would be generated.
    */
-  getTotalCount(): number {
+  getTotalCount() {
     const range = this.max - this.min + 1;
     // All combinations minus those where a = 0
     const aCount = range - (this.min <= 0 && this.max >= 0 ? 1 : 0);

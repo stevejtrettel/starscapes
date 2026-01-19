@@ -1,20 +1,18 @@
-import type { PolynomialFamily } from './types';
-import { CONFIG } from '../config';
+import { CONFIG } from '../config.js';
 
 /**
  * Generates monic cubic polynomials x³ + ax² + bx + c
  * where a, b, c are integers in a specified range.
  * (Leading coefficient is always 1)
+ *
+ * Implements the PolynomialFamily interface (see families/types.js).
  */
-export class MonicCubicFamily implements PolynomialFamily {
-  readonly name = 'Monic Cubics';
-  readonly degree = 3;
-  readonly coefficientCount = 4; // [1, a, b, c]
+export class MonicCubicFamily {
+  name = 'Monic Cubics';
+  degree = 3;
+  coefficientCount = 4; // [1, a, b, c]
 
-  private min: number;
-  private max: number;
-
-  constructor(min?: number, max?: number) {
+  constructor(min, max) {
     this.min = min ?? CONFIG.COEFFICIENT_RANGE.MIN;
     this.max = max ?? CONFIG.COEFFICIENT_RANGE.MAX;
   }
@@ -23,7 +21,7 @@ export class MonicCubicFamily implements PolynomialFamily {
    * Generate all monic cubic polynomials with integer coefficients in range.
    * Format: [1, a, b, c] for x³ + ax² + bx + c
    */
-  generate(output: Float32Array, maxCount: number): number {
+  generate(output, maxCount) {
     const { min, max } = this;
     let index = 0;
 
@@ -46,7 +44,7 @@ export class MonicCubicFamily implements PolynomialFamily {
   /**
    * Calculate total number of polynomials that would be generated.
    */
-  getTotalCount(): number {
+  getTotalCount() {
     const range = this.max - this.min + 1;
     return range * range * range;
   }

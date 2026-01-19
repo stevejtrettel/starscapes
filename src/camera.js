@@ -1,37 +1,28 @@
-import { CONFIG } from './config';
-
-export interface CameraState {
-  center: [number, number];
-  scale: number;
-}
+import { CONFIG } from './config.js';
 
 /**
  * Camera for navigating the complex plane.
  * Handles pan (drag) and zoom (scroll) interactions.
+ *
+ * Camera state: { center: [x, y], scale: number }
  */
 export class Camera {
-  center: [number, number];
-  scale: number;
-
-  private canvas: HTMLCanvasElement;
-  private isDragging = false;
-  private lastMousePos: [number, number] = [0, 0];
-
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas) {
     this.canvas = canvas;
     this.center = [...CONFIG.CAMERA.INITIAL_CENTER];
     this.scale = CONFIG.CAMERA.INITIAL_SCALE;
+    this.isDragging = false;
+    this.lastMousePos = [0, 0];
 
     this.setupEventListeners();
   }
 
-  private setupEventListeners(): void {
+  setupEventListeners() {
     const canvas = this.canvas;
 
     // Mouse down - start drag
     canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) {
-        // Left click
         this.isDragging = true;
         this.lastMousePos = [e.clientX, e.clientY];
         canvas.style.cursor = 'grabbing';
@@ -98,16 +89,16 @@ export class Camera {
   }
 
   /**
-   * Get pixels per world unit (based on vertical extent)
+   * Get pixels per world unit (based on vertical extent).
    */
-  private getPixelsPerUnit(): number {
+  getPixelsPerUnit() {
     return this.canvas.height / this.scale;
   }
 
   /**
-   * Convert screen coordinates to world coordinates
+   * Convert screen coordinates to world coordinates.
    */
-  screenToWorld(screenX: number, screenY: number): [number, number] {
+  screenToWorld(screenX, screenY) {
     const pixelsPerUnit = this.getPixelsPerUnit();
     const aspect = this.canvas.width / this.canvas.height;
 
@@ -127,9 +118,9 @@ export class Camera {
   }
 
   /**
-   * Get camera state for rendering
+   * Get camera state for rendering.
    */
-  getState(): CameraState {
+  getState() {
     return {
       center: [...this.center],
       scale: this.scale,
@@ -137,9 +128,9 @@ export class Camera {
   }
 
   /**
-   * Reset camera to initial position
+   * Reset camera to initial position.
    */
-  reset(): void {
+  reset() {
     this.center = [...CONFIG.CAMERA.INITIAL_CENTER];
     this.scale = CONFIG.CAMERA.INITIAL_SCALE;
   }
