@@ -11,6 +11,9 @@ out float v_discriminant;
 // Radius scale factor
 uniform float u_radiusScale;
 
+// Max radius to prevent giant dots near discriminant = 0
+const float MAX_RADIUS = 0.5;
+
 // Cube root that handles negative numbers
 float cbrt(float x) {
     return sign(x) * pow(abs(x), 1.0 / 3.0);
@@ -47,7 +50,6 @@ void main() {
     float discriminant = -4.0 * p * p * p - 27.0 * q * q;
 
     if (discriminant >= 0.0) {
-        // Three real roots - skip
         v_root = vec2(0.0);
         v_radius = 0.0;
         v_discriminant = 0.0;
@@ -56,7 +58,6 @@ void main() {
     }
 
     // Cardano's formula
-    // D = q²/4 + p³/27 > 0 when Δ < 0
     float D = q * q / 4.0 + p * p * p / 27.0;
     float sqrtD = sqrt(D);
 
@@ -64,14 +65,25 @@ void main() {
     float v = cbrt(-q / 2.0 - sqrtD);
 
     // Complex roots (upper half-plane):
-    // t = -(u+v)/2 ± i(u-v)√3/2
-    // x = t - p1/3
     float shift = p1 / 3.0;
     float re = -(u + v) / 2.0 - shift;
     float im = abs(u - v) * sqrt(3.0) / 2.0;
 
-    // Only take upper half-plane (im > 0)
     if (im <= 0.0) {
+        v_root = vec2(0.0);
+        v_radius = 0.0;
+        v_discriminant = 0.0;
+        gl_Position = vec4(0.0);
+        return;
+    }
+
+    // Pisot filter: complex conjugate pair inside unit circle,
+    // real root > 1
+    float reActual = re + shift;  // undo depression shift
+    float modSq = reActual * reActual + im * im;
+    float realRoot = -p1 - 2.0 * reActual;
+
+    if (modSq >= 1.0 || realRoot <= 1.0) {
         v_root = vec2(0.0);
         v_radius = 0.0;
         v_discriminant = 0.0;
@@ -81,10 +93,7 @@ void main() {
 
     v_root = vec2(re, im);
     v_discriminant = discriminant;
-
-    // Compress discriminant range with sqrt for more reasonable radius variation
-    // Clamp to prevent giant dots when discriminant is near zero
-    v_radius = min(u_radiusScale * im / sqrt(abs(discriminant)), 0.5);
+    v_radius = min(u_radiusScale * im / sqrt(abs(discriminant)), MAX_RADIUS);
 
     gl_Position = vec4(0.0);
 }
