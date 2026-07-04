@@ -93,3 +93,106 @@ population-contract framework (design.md, Level 2).
   1/y law): derive as a lemma, aiming for `proved` status.
 - Deep-zoom demonstration (where forward search cannot follow) — deferred
   until contracts land, so the demo is of a named population.
+
+---
+
+## E4 — The zoom depth wall
+**2026-07-04 · `scripts/experiments/zoom-depth-wall.ts`**
+
+**Question.** Steve observes the live view thinning dramatically under zoom.
+Hypothesis: the worker's depth ceiling (a ≤ 800) — demanded depth grows like
+1/height, so past the ceiling the delivered fraction of the visible
+population collapses. Secondary: per-a enumeration cost ∝ seeds × depth, so
+time should grow toward the ceiling then flatten.
+
+**Setup.** Zoom into fixed z₀ = 0.318 + 0.842i, heights 2.6/2ᵏ for
+k = 0…9; worker's exact parameters (visual ε = 2c, derived depth, ceiling
+800, half-res seeds of a 600² viewport).
+
+**Prediction.** Harvest count grows with zoom until the ceiling binds
+(h ≈ 0.05), then collapses; time rises to the ceiling then plateaus around
+seconds — both confirming the wall is the cap + algorithm, not the
+mathematics (the true visible population keeps growing ∝ 1/h).
+
+**Result.** Confirmed on both counts. Harvest doubles per zoom level while
+depth is delivered (4,054 at k=0 → 415,295 at k=6), then collapses ~4× per
+level once the ceiling binds (k=7: demanded 1551, delivered 800, 229,911;
+k=9: demanded 6204, harvested 15,388). Time flattens at ~3.4 s at the
+ceiling. Sharpened finding: even below the wall the algorithm is too slow
+for live use — at k=6, ~630M candidate checks yield 415k polynomials, a
+0.07% hit rate. Per-a enumeration pays for every depth level; almost all
+are empty.
+
+**Conclusion.** The wall is the cap + algorithm, not the mathematics. Fix
+is algorithmic: replace per-a enumeration with the shaders.tex sphere-trace
+(work ∝ hits, not depth), keeping per-a enumeration as the completeness
+reference implementation for equivalence testing. Design discussion before
+implementation.
+
+---
+
+## E5 — The cone removes the wall
+**2026-07-04 · `scripts/experiments/zoom-depth-cone.ts`**
+
+**Question.** Does view-cone enumeration (src/core/search/cone.ts —
+work ∝ population, no seeds/rays/tube) deliver full demanded depth at all
+E4 zoom levels in live-viable time?
+
+**Setup.** E4's exact zoom ladder (z₀ = 0.318 + 0.842i, heights 2.6/2ᵏ,
+k = 0…9, same derived depth formula), no ceiling.
+
+**Prediction.** Population count keeps growing roughly 2× per level through
+k = 9 (no collapse), and per-level time stays well under ~200 ms even at
+k = 9 where E4's ray harvest was starved at 15k dots and 3.3 s.
+
+**Result.** Prediction confirmed and exceeded. Population doubles per level
+with no collapse (19k at k=0 → 6,914,744 at k=9, full demanded depth
+a ≤ 6204); time stays trivial (36.6 ms at k=9). Against E4 at k=9: the cone
+finds 450× more polynomials in 1/90th the time. At k=6 (E4's wall): 867k in
+4.6 ms vs the ray harvest's 415k in 3413 ms — ~700× faster AND more
+complete (the tube missed population the cone provably contains).
+
+**Conclusion.** The wall was the algorithm, not the mathematics. View-cone
+enumeration (work ∝ population) replaces the per-seed ray harvest in the
+live worker; the ray formulation remains the CPU mirror of the shader-mode
+mathematics. Known limit noted: at extreme zoom the population (6.9M at
+k=9) exceeds the GL renderer's 1.5M instance capacity; chunks stream in
+ascending leading coefficient, so what clamps off is the deepest sub-pixel
+dust — graceful, but the dust-factor depth heuristic deserves revisiting.
+
+---
+
+## E6 — Ink-budget depth: constant perceived weight under zoom
+**2026-07-04 · `scripts/experiments/zoom-ink-budget.ts`**
+
+**Question.** Steve observes saturation-to-black under deep zoom (each
+depth level paints ~constant ink for unclamped dots, and clamped sub-pixel
+dust ink grows ∝ a² — so zoom-adaptive visibility depth must saturate).
+Does a literal ink budget — stream the cone shallow→deep, accumulate
+Σπr²_px per dot, stop after the depth level that crosses β·screen —
+hold perceived weight constant at every zoom?
+
+**Setup.** E4/E5 zoom ladder; worker's mechanism exactly: fixed
+sizeScale = 0.035, β = 0.25, level-granular stop, depth guard 100k.
+
+**Prediction.** Ink fraction lands at β + at most one level's overshoot at
+every k (flat where E5's fixed-depth ink diverged); depth reached grows
+with zoom but slower than the visibility bound; population kept stays
+roughly constant across k (bounded by budget ÷ min dot area); time stays
+live-viable throughout.
+
+**Result.** Prediction half-right, and the failure is the finding. Ink holds
+flat at ~25% through k≈7 ✓, but "kept dots" collapses at deep zoom (k=6:
+139 dots; k=8/9: ONE dot, ink 37%/149%): at extreme zoom the shallow dots
+are enormous in pixels (an a=1 dot spans thousands of px), so a handful of
+screen-filling "background" dots exhaust the whole budget before any fine
+structure is computed. Raw Σπr² is the wrong perceptual measure under
+opaque compositing: dots much larger than the screen act as background
+fills that deeper structure paints over — they should not spend the
+texture budget.
+
+**Conclusion.** Budget mechanism sound; accounting needs a perceptual
+amendment (proposed, pending discussion): dots with pixel radius above a
+background threshold (~viewport scale) are emitted but spend no budget —
+they are few (expected count per level within a window is πy²c² ≈ 0.003)
+and structural; the budget regulates texture-scale ink only.

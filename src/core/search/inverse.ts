@@ -64,14 +64,20 @@ export function harvestQuadratics(
   seedsY: number,
   onBatch: (coeffs: Float64Array, count: number) => void,
   batchCapacity = 4096,
+  /**
+   * Dedupe set. Passing one in lets a caller split a view into row-slices
+   * (via window subdivision) while deduping across the whole view — the
+   * streaming path. Sliced runs with a shared set emit exactly the whole
+   * run's polynomials (equivalence-tested).
+   */
+  seen: Set<string> = new Set<string>(),
 ): number {
   const { aMax, epsilon, criterion, adaptiveDepth } = search;
   const dx = window.worldW / seedsX;
   const dy = window.worldH / seedsY;
 
-  // Dedupe across trace points. String keys: (a, b, c) can exceed what packs
-  // into 53 bits, and the rig favors correctness over the last bit of speed.
-  const seen = new Set<string>();
+  // String keys: (a, b, c) can exceed what packs into 53 bits, and we favor
+  // correctness over the last bit of speed.
   const coeffs = new Float64Array(batchCapacity * 3);
   let inBatch = 0;
   let total = 0;

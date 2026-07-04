@@ -37,4 +37,33 @@ describe("inverse quadratic harvest", () => {
     const deep = collect(10, 0.04, AROUND_I, 32).length;
     expect(deep).toBeGreaterThan(shallow);
   });
+
+  it("row-sliced runs with a shared seen set ≡ one whole run (streaming path)", () => {
+    const whole: string[] = [];
+    harvestQuadratics(inverse({ aMax: 8, epsilon: 0.05 }), AROUND_I, 32, 32, (coeffs, count) => {
+      for (let i = 0; i < count; i++) {
+        whole.push(`${coeffs[i * 3 + 2]},${coeffs[i * 3 + 1]},${coeffs[i * 3]}`);
+      }
+    });
+
+    const sliced: string[] = [];
+    const seen = new Set<string>();
+    const dy = AROUND_I.worldH / 32;
+    for (let row = 0; row < 32; row += 5) {
+      const rows = Math.min(5, 32 - row);
+      const slice = {
+        left: AROUND_I.left,
+        top: AROUND_I.top - row * dy,
+        worldW: AROUND_I.worldW,
+        worldH: rows * dy,
+      };
+      harvestQuadratics(inverse({ aMax: 8, epsilon: 0.05 }), slice, 32, rows, (coeffs, count) => {
+        for (let i = 0; i < count; i++) {
+          sliced.push(`${coeffs[i * 3 + 2]},${coeffs[i * 3 + 1]},${coeffs[i * 3]}`);
+        }
+      }, 4096, seen);
+    }
+
+    expect(sliced.sort()).toEqual(whole.sort());
+  });
 });
