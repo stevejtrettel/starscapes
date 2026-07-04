@@ -227,10 +227,14 @@ learn):
 1. **Offline print.** Core spine — quadratics + cubics, forward search,
    first invariants (disc, height, irreducible), both compositing modes —
    driven by a Node script producing a real PNG.
-2. **Live explorer.** Raw-WebGL2 disk view over the same core: pan/zoom,
-   restyle, spec export (the explore → print handshake closes).
-3. **Inverse sampler.** March-harvest-dedupe as a search mode, live density
-   rendering, general degree via Aberth–Ehrlich.
+2. **Inverse sampler** (swapped ahead of the explorer, 2026-07-04: the
+   offline pipeline is its natural test harness — deterministic image
+   diffs against exhaustive forward ground truth — and the explorer only
+   becomes magical with it). March-harvest-dedupe as a search mode;
+   quadratics first (the ray case, no slicing loop), cubics second.
+3. **Live explorer.** Raw-WebGL2 disk view over the same core: pan/zoom,
+   restyle, spec export (the explore → print handshake closes). General
+   degree via Aberth–Ehrlich lands alongside as needed.
 4. **The rest by priority:** march view as a direct image, symmetry
    exploitation, continuous families, δ-certification escalation tiers,
    Galois invariants, workers at scale, tiling for beyond-RAM prints.
@@ -254,25 +258,52 @@ exactly, cull) and misses large-|f′| polynomials — which, under disc-type
 size laws (|f′(w)|² = |disc| for quadratics), are exactly the dots too
 small to see.
 
-**Settled: the nearness criterion is an experimental surface, not a fixed
-choice.** March/slice/harvest/dedupe machinery is criterion-independent;
-the acceptance criterion is a pluggable, named, always-explicit component
-(recorded in every artifact), to be chosen by experiments with real
-pictures. Named candidates:
-- `fixed-ε` — hand-set coefficient-space tube (shaders.tex behavior;
-  baseline);
-- `visual` — ε derived from the size law (~c/‖(1,z,…,z^d)‖ for 1/|f′|
-  sizing): promises every *visible* dot is harvested, at every height,
-  zoom-independently;
-- `ink` — the additive-density reading: ε chosen against a bounded
-  ink-deficit target (sub-pixel dots still deposit ink there);
-- `exhaustive(H)` — every polynomial with a root in the window up to
-  height H (fattening tube, expensive): the ground truth that validates
-  the others by image diff.
+**Settled (2026-07-04, refining the earlier "criterion" framing after the
+first experiments — see docs/experiments.md): population contracts.**
 
-*Still open at Level 3:* slicing-coordinate choice for constrained families
-(meaningful cofactor coordinates vs numerically optimal ones, degenerate z),
-cutoff semantics, symmetry hooks in the march.
+The root measure of a family is infinite — every window contains infinitely
+many roots — so *every* picture, forward or inverse, is a truncation: a
+choice of finite sub-population of (polynomial, root) pairs. There is no
+"the" starscape. The framework makes that choice first-class:
+
+- **A population contract Φ** is a named, precise definition of a finite
+  sub-population (possibly view- and style-dependent). Examples:
+  Φ_box(B) (coefficients in a box — the forward object), Φ_disc(D)
+  (|disc| ≤ D — SL₂(ℤ)-invariant, the canonical quadratic truncation),
+  Φ_visible (styled dot ≥ 1 pixel at this zoom), Φ_ink(τ). Future theory
+  (the pushforward-density work) arrives as one new named contract.
+- **Coverage plans are derived, never dialed.** Given Φ, the march
+  parameters (tube radius, depth, candidate windows) are *computed from
+  the contract* as a sufficiency claim — "this plan finds every root in
+  the window belonging to Φ" — either proved (a small lemma; the
+  exchange-rate estimates are of this kind) or labeled `heuristic`, and
+  the label travels into every artifact. ε/aMax/depth cease to exist as
+  user-facing knobs.
+- **Membership is exact; coverage may over-shoot.** The plan bounds the
+  search; the contract's exact membership test filters the harvest. So
+  over-coverage is harmless and completeness is the only obligation.
+- **The verification harness**: any contract with a brute-force
+  ground-truth enumeration on a test window gets its plan validated by
+  set-diff and image-diff (the parity rig, generalized). A candidate
+  "right answer" is accepted this way — one new contract, one harness
+  run, nothing else moves.
+- **Thinning is downstream of completeness.** Prescribed-density pictures
+  (mode 2's "specify a density and hit it") are realized by faithfully
+  harvesting a complete superset, then deterministically thinning as
+  explicit post-processing. Sampling bias never enters through the search
+  geometry.
+
+Empirical basis (experiments E1–E3, docs/experiments.md): fixed-ε is a
+*tool-defined* population — circular, hence untunable artifacts; the
+adaptive depth a ≲ √D/2y that emerged empirically is precisely Φ_disc(D)'s
+coverage plan; and Φ_disc's faithful picture is Euclidean-dense near ℝ
+(uniform in *hyperbolic* area, as its SL₂-invariance dictates) — "is it
+meant to be even" is exactly the "which Φ" question.
+
+*Still open at Level 3:* the contract interface shape (under discussion);
+the tube-radius lemma for Φ_disc's proved plan; slicing-coordinate choice
+for constrained families (cofactor vs numerically optimal bases,
+degenerate z); symmetry hooks in the march.
 
 ## Remaining Level 2 conversations
 1. Rendering semantics in detail (tone mapping, antialiasing, gallery

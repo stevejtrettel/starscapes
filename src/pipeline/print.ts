@@ -7,6 +7,7 @@
 import type { Family } from "../core/family/types.ts";
 import { discriminant, height } from "../core/invariants.ts";
 import { type BoxSearch, DEFAULT_BATCH_CAPACITY, enumerateBox } from "../core/search/forward.ts";
+import { harvestQuadratics, type InverseSearch } from "../core/search/inverse.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots } from "../core/solve/types.ts";
@@ -22,7 +23,7 @@ export interface View {
 
 export interface PrintSpec {
   family: Family;
-  search: BoxSearch;
+  search: BoxSearch | InverseSearch;
   filters?: RootFilter[];
   style: Style;
   view: View;
@@ -77,7 +78,7 @@ export function renderPrint(spec: PrintSpec): PrintResult {
   let roots = 0;
   let drawn = 0;
 
-  const polynomials = enumerateBox(family, spec.search, (coeffs, count) => {
+  const onBatch = (coeffs: Float64Array, count: number) => {
     if (degree === 2) solveQuadraticBatch(coeffs, count, slots);
     else if (degree === 3) solveCubicBatch(coeffs, count, slots);
     else throw new Error(`no solver for degree ${degree} yet`);
@@ -108,7 +109,21 @@ export function renderPrint(spec: PrintSpec): PrintResult {
         drawn++;
       }
     }
-  });
+  };
+
+  let polynomials: number;
+  if (spec.search.kind === "box") {
+    polynomials = enumerateBox(family, spec.search, onBatch);
+  } else {
+    if (degree !== 2) throw new Error("inverse search supports quadratics only (for now)");
+    // Trace points: one per output pixel (constant-ink default seeding).
+    polynomials = harvestQuadratics(
+      spec.search,
+      { left, top, worldW, worldH },
+      width, imgHeight,
+      onBatch,
+    );
+  }
 
   return {
     rgb: develop(raster),
