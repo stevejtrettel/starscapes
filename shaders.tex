@@ -1,0 +1,1057 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1.2in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\T}{\mathbb{T}}
+\newcommand{\Hb}{\mathbb{H}}
+\newcommand{\re}{\operatorname{Re}}
+\newcommand{\im}{\operatorname{Im}}
+
+\definecolor{codebg}{rgb}{0.96, 0.96, 0.96}
+\definecolor{codecomment}{rgb}{0.4, 0.5, 0.4}
+\definecolor{codekw}{rgb}{0.2, 0.2, 0.6}
+
+\lstset{
+    language=C,
+    basicstyle=\small\ttfamily,
+    backgroundcolor=\color{codebg},
+    commentstyle=\color{codecomment}\itshape,
+    keywordstyle=\color{codekw}\bfseries,
+    morekeywords={vec2,vec3,ivec3,float,int,bool,void,const,out},
+    frame=single,
+    framerule=0.4pt,
+    xleftmargin=1em,
+    xrightmargin=1em,
+    aboveskip=1em,
+    belowskip=1em,
+    breaklines=true,
+    columns=flexible,
+}
+
+\title{Raytracing Starscapes}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+
+%% ================================================================
+\section{Making It a Shader Problem}
+%% ================================================================
+
+We've always rendered starscapes the same way: loop over polynomials, solve each one, plot the roots.
+It works, but you're iterating over coefficient space and hoping the roots land somewhere useful.
+Most of them fall off-screen, and the cost is something like $(2N+1)^{d+1}$, so it gets painful fast once you push the degree or coefficient bound up.
+
+I want to describe a completely different approach that we've been playing with, where instead of looping over polynomials, we let each pixel ask ``am I near a root?'' on its own.
+
+
+The idea is simple: for each pixel $z$ in the upper half plane, ask whether there's an integer polynomial of the right type with a root near $z$.
+Black if yes, white if no.
+That's a fragment shader --- one function call per pixel, all running in parallel on the GPU.
+
+We only compute what's on screen, at whatever resolution we want, live.
+The tradeoff is we lose marker shapes (the ``dots'' around each root are determined by closeness in coefficient space, so they're not round), and we rediscover the same polynomial from every nearby pixel.
+But that redundancy costs nothing in a shader --- it's just parallel threads.
+
+
+%% ================================================================
+\section{Raytracing in the 3-Torus}
+\label{sec:quadratic}
+%% ================================================================
+
+\subsection{The quadratic case}
+
+Fix a pixel $z = s + iy$ in the upper half plane.
+Every real quadratic $ax^2 + bx + c$ having $z$ as a root is a scalar multiple of
+\[
+    x^2 - 2sx + n, \qquad \text{where } s = \re(z),\; n = |z|^2.
+\]
+So the set of all such quadratics, parameterized by $t \in \R \setminus \{0\}$, is the ray
+\[
+    \mathbf{R}(t) = t \cdot (1,\; -2s,\; n)
+\]
+in the three-dimensional coefficient space $(a, b, c) \in \R^3$.
+The pixel $z$ is close to a quadratic irrational if and only if this ray passes close to a point of the integer lattice $\Z^3$.
+
+\subsection{A worked example}
+
+Here's what the march actually does at $z = 0.01 + i$.
+We have $s = 0.01$, $n = |z|^2 = 1.0001$, so the ray direction is
+\[
+    \mathbf{d} = (1,\; -0.02,\; 1.0001),
+\]
+close to but not exactly $(1, 0, 1)$, which would be the polynomial $x^2 + 1$.
+
+Starting at $t_{\min} = 0.5$, we're at $(0.5,\; -0.01,\; 0.50)$, far from anything --- the SDF gives $\sim 0.67$, so we jump ahead by about $0.47$.
+Now $t \approx 0.97$ and we're near $(0.97,\; -0.019,\; 0.97)$, whose nearest lattice point is $(1, 0, 1)$.
+Distance is about $0.044$, just outside the ball radius of $0.04$, so we take a tiny step.
+A few more sub-steps and we're inside the ball.
+
+The lattice point is $(a, b, c) = (1, 0, 1)$, discriminant $0 - 4 = -4 < 0$, so it's a valid quadratic with complex roots --- the polynomial $x^2 + 1$, root at $i$.
+Pixel colored black.
+
+The closest approach to $(1, 0, 1)$ is at $t \approx 1.0$, where the offset is roughly $(0, -0.02, 0)$ --- the miss is almost entirely in the $b$-direction, magnitude $\approx 0.02$, well inside the $0.04$ ball.
+A pixel farther from $i$ would miss by more than $0.04$, and the march would keep going.
+
+\subsection{From rays to the 3-torus}
+
+The question ``does the ray $t \cdot \mathbf{d}$ pass near an integer point?'' is the same as asking whether the fractional part $\{t \cdot \mathbf{d}\} = t \cdot \mathbf{d} \bmod \Z^3$ ever comes close to the origin in the 3-torus $\T^3 = \R^3 / \Z^3$.
+
+In the torus picture, the ray wraps around and we're looking for returns to a neighborhood of the origin.
+This is standard SDF raymarching: define
+\[
+    \operatorname{sdf}(\mathbf{p}) = |\mathbf{p} - \lfloor \mathbf{p} \rceil| - \varepsilon,
+\]
+where $\lfloor \cdot \rceil$ rounds to the nearest integer and $\varepsilon$ is the ball radius.
+When $\operatorname{sdf} < 0$ we're inside a ball.
+When $\operatorname{sdf} > 0$ it's a lower bound on the distance to the nearest lattice point, so we can safely step forward by $\operatorname{sdf} / |\mathbf{d}|$ --- largest safe step at every iteration.
+
+\subsection{The shader}
+
+Here's the quadratic shader:
+
+\begin{lstlisting}
+float sdfLatticeBalls(vec3 p, float radius) {
+    return length(p - round(p)) - radius;
+}
+
+// Check that (a,b,c) gives a root in the upper half plane.
+// disc < 0 also implies irreducible over Q.
+bool hasRootInUpperHalfPlane(ivec3 abc) {
+    int disc = abc.y*abc.y - 4*abc.x*abc.z;
+    return (abc.x != 0) && (disc < 0);
+}
+
+bool march(vec3 dir, float radius) {
+    float speed = length(dir);
+    float t = T_MIN;
+    for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = t * dir;
+        float d = sdfLatticeBalls(p, radius);
+        if (d < HIT_THRESHOLD) {
+            ivec3 abc = ivec3(round(p));
+            if (hasRootInUpperHalfPlane(abc))
+                return true;
+            // Invalid point: step past it
+            t += (radius + HIT_THRESHOLD) / speed;
+        } else {
+            t += d / speed;
+        }
+        if (t > T_MAX) break;
+    }
+    return false;
+}
+\end{lstlisting}
+
+For each pixel $z$, we compute $\mathbf{d} = (1, -2s, n)$ and call \texttt{march}.
+A hit means $z$ is near a quadratic irrational; color it black.
+
+We do need to check that the lattice point we hit actually gives a quadratic with roots in the upper half plane ($a \neq 0$, discriminant $< 0$).
+If not, we step past and keep marching.
+The discriminant check does double duty: it validates that the roots are complex, and it gives us irreducibility over $\Q$ for free, since a quadratic with negative discriminant can't factor.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/quadratics.png}
+    \caption{Roots of integer quadratics, rendered with \texttt{BALL\_RADIUS = 0.04}. }
+    \label{fig:quadratic}
+\end{figure}
+
+
+%% ================================================================
+\section{Cubics}
+\label{sec:cubic}
+%% ================================================================
+
+\subsection{The geometry of cubic coefficient space}
+
+A cubic $ax^3 + bx^2 + cx + d$ with root $z$ factors as
+\[
+    a \cdot (x^2 - 2sx + n)(x - r),
+\]
+where $r \in \R$ is the remaining real root.
+Now we have two free parameters: the leading coefficient $a$ and the real root $r$.
+In $(a, b, c, d)$-space this traces out a plane through the origin:
+\[
+    \mathbf{P}(a, r) = a\bigl(-2s,\; n,\; 0\bigr) + ar \cdot \bigl(-1,\; 2s,\; -n\bigr),
+\]
+where we've written only the lower three coefficients $(b, c, d)$ since $a$ itself is the first coordinate.
+
+So we've gone from tracing a ray through $\Z^3$ (quadratics) to finding integer points near a plane in $\Z^4$ (cubics).
+Tracing a plane directly is harder.
+We need to reduce.
+
+\subsection{Monic cubics: back to a line}
+
+Simplest case: fix $a = 1$.
+Now the only free parameter is the real root $r$, and the coefficients trace an affine line in $(b, c, d)$-space:
+\[
+    \mathbf{L}(r) = (-2s,\; n,\; 0) + r \cdot (-1,\; 2s,\; -n).
+\]
+This is exactly the same setup as the quadratic case --- a one-dimensional trace through a three-dimensional integer lattice --- except the line does not pass through the origin and $r$ ranges over all of $\R$ rather than just $r > 0$.
+We march in both directions from the base point.
+
+The trace parameter $r$ has a direct meaning: it is the real root of the cubic.
+This will be crucial for the irreducibility check.
+
+\subsection{Irreducibility}
+
+A cubic over $\Q$ is reducible if and only if it has a rational root (any factorization must include a linear factor).
+We already know the real root: it is our trace parameter $r$.
+So for a monic cubic, reducibility is equivalent to $r \in \Z$ --- we just check whether $r$ is near an integer.
+
+More carefully: at a hit, we use $r$ to identify the candidate integer root $m = \lfloor r \rceil$, then verify exactly against the integer polynomial we found:
+\[
+    m^3 + bm^2 + cm + d = 0 \quad \Longrightarrow \quad \text{reducible; skip.}
+\]
+If the evaluation is nonzero, the cubic is irreducible and we keep the hit.
+This check is essentially free.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/monic-cubics.png}
+    \caption{Roots of irreducible monic cubics, after filtering out reducible cubics whose real root is an integer (which would make $z$ merely a quadratic irrational).}
+    \label{fig:cubic-monic}
+\end{figure}
+
+\subsection{General cubics: slicing the plane into lines}
+
+For general cubics, we need the full plane parameterized by $(a, r)$.
+The key observation: if we fix $a$ to be a specific positive integer, the remaining family is again a line parameterized by $r$:
+\[
+    \mathbf{L}_a(r) = a(-2s,\; n,\; 0) + r \cdot a(-1,\; 2s,\; -n).
+\]
+This is a line in $(b, c, d)$-space --- the same structure as the monic case, just scaled by $a$.
+(We only need positive $a$: negating $a$ negates all coefficients without changing the roots.)
+
+So fixing $a \in \{1, 2, 3, \ldots, A_{\max}\}$ slices the plane into a family of parallel lines (parallel because the direction $(-1, 2s, -n)$ is the same up to scale), and we trace each one.
+
+But does this actually find all the integer points near the plane?
+Yes: any integer point $(a, b, c, d) \in \Z^4$ near the plane has, in particular, an integer first coordinate $a$.
+So it lies near the line $\mathbf{L}_a$ for that specific value of $a$.
+As long as we search over enough values of $a$, we find every nearby lattice point.
+
+\begin{lstlisting}
+// Only positive a: negating a negates all coefficients,
+// which doesn't change the roots of the polynomial.
+for (int a = 1; a <= A_MAX; a++) {
+    vec3 base = float(a) * baseUnit;
+    vec3 dir  = float(a) * dirUnit;
+    if (traceLine(base, dir, R_MAX, BALL_RADIUS, a)) {
+        // Darker = smaller a (simpler polynomial)
+        float brightness = float(a - 1) / float(A_MAX);
+        col = vec3(brightness);
+        break;
+    }
+}
+\end{lstlisting}
+
+Setting \texttt{A\_MAX = 1} recovers the monic case.
+We search from smallest $a$ outward and color by $a$: darker for simpler polynomials.
+
+For the irreducibility check, we generalize slightly.
+By the rational root theorem, any rational root of $ax^3 + bx^2 + cx + d$ has the form $p/q$ with $q \mid a$.
+We already know $r$, so for each divisor $q$ of $a$ we round $qr$ to the nearest integer $p$ and evaluate the polynomial at $p/q$ in homogeneous form (multiplying through by $q^3$ to stay in integers).
+Float arithmetic avoids overflow, and a threshold of $0.5$ is safe: any nonzero value of $aq^3 \cdot f(p/q)$ is at least $1$ in absolute value, so values below $0.5$ must be zero.
+
+\begin{lstlisting}
+bool isReducible(int a, float r, ivec3 bcd) {
+    int b = bcd.x, c = bcd.y, d = bcd.z;
+    int absA = abs(a);
+    for (int q = 1; q <= absA; q++) {
+        if (absA % q != 0) continue;
+        float fq = float(q);
+        float fn = round(fq * r);
+        // Float arithmetic to avoid int overflow.
+        float fval = float(a)*fn*fn*fn + float(b)*fn*fn*fq
+                   + float(c)*fn*fq*fq + float(d)*fq*fq*fq;
+        if (abs(fval) < 0.5) return true;
+    }
+    return false;
+}
+\end{lstlisting}
+
+With $a \leq 5$ this runs at most a handful of iterations.
+
+\begin{figure}[ht]
+    \centering
+  \includegraphics[width=0.9\textwidth]{img/cubic-all.png}
+    \caption{Irreducible cubic roots with $a \leq 5$.}
+    \label{fig:cubic-general}
+\end{figure}
+
+
+%% ================================================================
+\section{Quartics}
+\label{sec:quartic}
+%% ================================================================
+
+\subsection{Three dimensions of freedom}
+
+A quartic $ax^4 + Bx^3 + Cx^2 + Dx + E$ with root $z$ factors as
+\[
+    a \cdot (x^2 - 2sx + n)(x^2 + px + q),
+\]
+with three free real parameters: the leading coefficient $a$ and the coefficients $p, q$ of the second quadratic factor.
+(Whether the second factor has real or complex roots depends on the sign of $p^2 - 4q$; both cases are parameterized simultaneously.)
+The coefficients are affine in $(a, p, q)$:
+\begin{align*}
+    B &= a(p - 2s), \\
+    C &= a(q - 2sp + n), \\
+    D &= a(np - 2sq), \\
+    E &= anq.
+\end{align*}
+For fixed $a$, this traces a 2-dimensional plane in $(B, C, D, E)$-space:
+\[
+    \mathbf{P}_a(p,q) = a(-2s,\; n,\; 0,\; 0)
+    + p \cdot a(1,\; -2s,\; n,\; 0)
+    + q \cdot a(0,\; 1,\; -2s,\; n).
+\]
+Note the shift pattern: the two basis vectors are both $a(1, -2s, n)$, displaced by one coordinate slot.
+
+So for fixed $a$, we need integer points in $\Z^4$ near a 2-dimensional plane.
+Same trick: fix another coordinate to be an integer, reducing the plane to lines.
+
+\subsection{Fixing two coefficients}
+
+The first coordinate $B = a(p - 2s)$ determines $p$ once $a$ and $B$ are fixed:
+\[
+    p = \frac{B}{a} + 2s.
+\]
+Substituting, the remaining three coordinates $(C, D, E)$ become linear in $q$:
+\[
+    \begin{pmatrix} C \\ D \\ E \end{pmatrix}
+    = a\begin{pmatrix} n - 2sp \\ np \\ 0 \end{pmatrix}
+    + q \cdot a\begin{pmatrix} 1 \\ -2s \\ n \end{pmatrix}.
+\]
+This is a line in $\R^3$ parameterized by $q$ --- exactly the cubic setup.
+The direction $a(1, -2s, n)$ is the same for every $B$; only the base point shifts.
+
+Same completeness argument as before: any integer point $(B, C, D, E) \in \Z^4$ near the plane has an integer $B$, so it lies near one of our lines.
+The algorithm is a double loop:
+
+\begin{lstlisting}
+// Only positive a: negating all coefficients
+// doesn't change the roots.
+for (int a = 1; a <= A_MAX; a++) {
+    float fa = float(a);
+    vec3 dirA = fa * vec3(1.0, -2.0 * s, n);
+    for (int B = -B_RANGE; B <= B_RANGE; B++) {
+        float p = (float(B) + 2.0 * fa * s) / fa;
+        vec3 base = fa * vec3(n - 2.0*s*p, n*p, 0.0);
+        result = traceLine(base, dirA, Q_MAX,
+                           BALL_RADIUS, a, B, p, s, n);
+        if (result != NO_HIT) break;
+    }
+    if (result != NO_HIT) break;
+}
+\end{lstlisting}
+
+Setting \texttt{A\_MAX = 1} restricts to monic quartics.
+The cost per pixel is $A_{\max} \times (2 B_{\text{range}} + 1)$ traces, but the early exit on first hit means most pixels terminate much sooner.
+
+\subsection{Irreducibility}
+
+Quartic irreducibility is trickier than cubics, because there are two ways a quartic can be reducible: it can have a rational root, or it can factor into two integer quadratics.
+
+For rational roots: if $E = 0$ then $x = 0$ is a root and we're done.
+Otherwise, any rational root has to come from the second factor $x^2 + px + q$ (the first factor's roots are $z$ and $\bar{z}$, which aren't real).
+If $p^2 - 4q < 0$ the second factor has no real roots either, so there's nothing to check.
+Otherwise we get two real root candidates from the quadratic formula and check whether either is rational with denominator dividing $a$, same strategy as the cubic case: for each divisor $d$ of $a$, round $d \cdot r_i$ to the nearest integer and evaluate the quartic in homogeneous form ($d^4$ times the polynomial at $r_i$) to avoid overflow.
+Threshold $0.5$ is safe since a nonzero evaluation has magnitude at least $1/d^4$.
+With $a \leq 3$, this checks at most 4 candidates.
+
+For factorization into two integer quadratics: we're looking for
+\[
+    (a_1 x^2 + Px + Q)(a_2 x^2 + Rx + S), \qquad a_1 a_2 = a, \quad P, Q, R, S \in \Z.
+\]
+Brute-forcing over $P$ is expensive and needs an arbitrary range cutoff.
+But we know $z$, so any integer quadratic factor containing $z$ and $\bar{z}$ must have $P \approx -2a_1 s$ and $Q \approx a_1 n$.
+For each factorization $a = a_1 a_2$, we try $P$ in a window of three around $\lfloor -2a_1 s \rceil$.
+I initially just rounded to the nearest integer, but that misses factorizations when $-2a_1 s$ is near a half-integer --- you get false-positive blue triangles around the quadratic irrationals.
+Trying $\pm 1$ around the estimate fixes it.
+
+For each candidate $P$, the rest is determined algebraically.
+$R = (B - a_2 P)/a_1$ (requiring divisibility).
+Setting $\sigma = C - PR$, the values $a_2 Q$ and $a_1 S$ are roots of $t^2 - \sigma t + a_1 a_2 E = 0$, so we need $\sigma^2 - 4aE$ to be a perfect square.
+Then $Q = (\sigma \pm \sqrt{\sigma^2 - 4aE\,})/(2a_2)$ and $S = (\sigma - a_2 Q)/a_1$, both required to be integers, and we verify $PS + QR = D$.
+Iterating $a_1$ from $1$ to $|a|$ automatically covers both assignments of which factor contains $z$.
+
+\subsection{Root-type coloring}
+
+Once a quartic passes both checks, we can classify it by root type.
+The first factor $x^2 - 2sx + n$ always has complex roots (its discriminant is $4s^2 - 4n = -4y^2 < 0$ since $z$ is in the upper half plane).
+The second factor $x^2 + px + q$ may have either real or complex roots, depending on the sign of $p^2 - 4q$.
+
+When $p^2 - 4q < 0$, \emph{both} quadratic factors have complex roots, so all four roots of the quartic are non-real (two conjugate pairs).
+When $p^2 - 4q \geq 0$, the second factor contributes two real roots, giving two complex and two real roots in total.
+
+We color the all-complex case \textcolor{blue}{\textbf{blue}} and the mixed case black, giving a visual separation of root type.
+For example, $x^4 + 1$ factors over $\R$ as $(x^2 + \sqrt{2}\,x + 1)(x^2 - \sqrt{2}\,x + 1)$, where both factors have negative discriminant; this quartic would be colored blue.
+
+\begin{figure}[ht]
+    \centering
+    % \includegraphics[width=0.7\textwidth]{quartic-monic.png}
+\includegraphics[width=0.9\textwidth]{img/monic-quartic.png}
+    \caption{Irreducible monic quartics. Black: two complex and two real roots. Blue: four complex roots (both quadratic factors have complex roots).}
+    \label{fig:quartic-monic}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+\includegraphics[width=0.9\textwidth]{img/quartics.png}
+    \caption{Irreducible quartics with $a \leq 3$, with the blue/black root-type distinction preserved and brightness indicating leading coefficient.}
+    \label{fig:quartic-general}
+\end{figure}
+
+
+%% ================================================================
+\section{Summary and the General Pattern}
+\label{sec:summary}
+%% ================================================================
+
+The whole thing comes down to two observations.
+The family of degree-$d$ polynomials with a prescribed complex root $z$ forms a $(d-1)$-dimensional linear subspace in coefficient space.
+And we can reduce finding integer points near a $k$-dimensional subspace to a family of one-dimensional raymarches by fixing $k - 1$ coordinates to be integers.
+
+\begin{center}
+\begin{tabular}{ccclp{4.5cm}}
+    \toprule
+    Degree & Subspace dim.\ & Coords.\ fixed & Traces per pixel & Irreducibility check \\
+    \midrule
+    2 & 1 & 0 & 1 & None needed (disc $< 0$ suffices) \\
+    3 & 2 & 1 ($= a$) & $A_{\max}$ & Rational root via known $r$ \\
+    4 & 3 & 2 ($= a, B$) & $A_{\max} \times (2B_{\text{range}} + 1)$ & Rational root $+$ integer quadratic factorization \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+This pattern continues: degree $d$ means fixing $d - 2$ integer coordinates and tracing a $(d-2)$-fold family of lines.
+At each hit, the known factorization gives us cheap irreducibility checks: for cubics we know the real root and just check if it's rational; for quartics we know the second quadratic factor and can test for rational roots and integer factorizations.
+For quartics we also color by root type --- blue for four complex roots, black for two complex and two real --- using the sign of the second factor's discriminant.
+
+
+\appendix
+
+%% ================================================================
+\section{Quadratic Shader}
+\label{app:quadratic}
+%% ================================================================
+
+\begin{lstlisting}
+// ============================================================
+// QUADRATIC IRRATIONALS IN THE UPPER HALF PLANE
+//
+// For z in the upper half plane, the set of real quadratics
+// with z as a root forms a ray in coefficient space (a,b,c):
+//
+//     R(t) = t * (1, -2*Re(z), |z|^2)    for t > 0
+//
+// We raymarch this ray looking for near-misses with integer
+// points, which correspond to quadratic irrationals near z.
+// ============================================================
+
+// --- Parameters ---
+const float BALL_RADIUS = 0.04;
+const float T_MIN = 0.5;
+const float T_MAX = 1000.0;
+const float HIT_THRESHOLD = 0.001;
+const int   MAX_STEPS = 300;
+
+// --- View settings ---
+const vec2 VIEW_CENTER = vec2(0.0, 1.0);
+const float VIEW_HEIGHT = 2.0;
+
+// ============================================================
+// COEFFICIENT SPACE GEOMETRY
+// ============================================================
+
+vec3 rayDirection(vec2 z) {
+    float x = z.x;
+    float normSq = dot(z, z);
+    return vec3(1.0, -2.0 * x, normSq);
+}
+
+float sdfLatticeBalls(vec3 p, float radius) {
+    vec3 offset = p - round(p);
+    return length(offset) - radius;
+}
+
+ivec3 nearestInteger(vec3 p) {
+    return ivec3(round(p));
+}
+
+// Check that (a,b,c) gives a root in the upper half plane.
+// Requires: a != 0 and discriminant < 0 (complex roots).
+// disc < 0 also implies irreducible over Q.
+bool hasRootInUpperHalfPlane(ivec3 abc) {
+    int a = abc.x;
+    int b = abc.y;
+    int c = abc.z;
+    int disc = b*b - 4*a*c;
+    return (a != 0) && (disc < 0);
+}
+
+// ============================================================
+// RAYMARCHING
+// ============================================================
+
+bool march(vec3 dir, float radius, out ivec3 hitCoeffs) {
+    float speed = length(dir);
+    float t = T_MIN;
+
+    for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = t * dir;
+        float d = sdfLatticeBalls(p, radius);
+
+        if (d < HIT_THRESHOLD) {
+            ivec3 abc = nearestInteger(p);
+            if (hasRootInUpperHalfPlane(abc)) {
+                hitCoeffs = abc;
+                return true;
+            }
+            // Invalid point: step past it
+            t += (radius + HIT_THRESHOLD) / speed;
+        } else {
+            t += d / speed;
+        }
+
+        if (t > T_MAX) break;
+    }
+
+    return false;
+}
+
+// ============================================================
+// VISUALIZATION
+// ============================================================
+
+vec2 pixelToHalfPlane(vec2 fragCoord, vec2 resolution) {
+    vec2 uv = fragCoord / resolution;
+    float aspect = resolution.x / resolution.y;
+    vec2 z;
+    z.x = VIEW_CENTER.x
+        + (uv.x - 0.5) * VIEW_HEIGHT * aspect;
+    z.y = VIEW_CENTER.y
+        + (uv.y - 0.5) * VIEW_HEIGHT;
+    return z;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 z = pixelToHalfPlane(fragCoord, iResolution.xy);
+
+    if (z.y <= 0.0) {
+        fragColor = vec4(vec3(0.3), 1.0);
+        return;
+    }
+
+    vec3 dir = rayDirection(z);
+
+    ivec3 coeffs;
+    bool hit = march(dir, BALL_RADIUS, coeffs);
+
+    vec3 col = hit ? vec3(0.0) : vec3(1.0);
+    fragColor = vec4(col, 1.0);
+}
+\end{lstlisting}
+
+
+%% ================================================================
+\section{Cubic Shader}
+\label{app:cubic}
+%% ================================================================
+
+\begin{lstlisting}
+// ============================================================
+// CUBIC ALGEBRAIC NUMBERS IN THE UPPER HALF PLANE
+//
+// A cubic with leading coefficient a and root z factors as
+//
+//   a * (x^2 - 2sx + n)(x - r)
+//
+// where s = Re(z), n = |z|^2. Fixing integer a, the lower
+// three coefficients (b,c,d) trace a line parameterized by
+// the real root r:
+//
+//   L_a(r) = a(-2s, n, 0) + r * a(-1, 2s, -n)
+//
+// We loop over a = 1, ..., A_MAX and raymarch each line in
+// both directions. Only positive a: negating a negates all
+// coefficients without changing the roots.
+//
+// Set A_MAX = 1 for monic cubics only.
+// ============================================================
+
+// --- Search parameters ---
+const float BALL_RADIUS = 0.02;
+const float R_MAX = 50.0;
+const float HIT_THRESHOLD = 0.001;
+const int   MAX_STEPS = 256;
+const int   A_MAX = 5;
+
+// --- View ---
+const vec2 VIEW_CENTER = vec2(0.0, 1.5);
+const float VIEW_HEIGHT = 3.0;
+
+const bool IRREDUCIBLE_ONLY = true;
+
+// ============================================================
+// Lattice SDF
+// ============================================================
+
+float sdfLatticeBalls(vec3 p, float radius) {
+    return length(p - round(p)) - radius;
+}
+
+// ============================================================
+// Irreducibility
+//
+// The trace parameter r IS the real root of the cubic.
+// A cubic over Q is reducible iff it has a rational root,
+// and by the rational root theorem any such root has the
+// form p/q with q | a.
+//
+// So for each divisor q of a, we round q*r to the nearest
+// integer and evaluate the polynomial there. If it vanishes,
+// the cubic is reducible. Uses float arithmetic to avoid
+// int overflow; threshold 0.5 is safe because any nonzero
+// value of an integer polynomial at a rational point is
+// at least 1/q^3 in absolute value.
+// ============================================================
+
+bool isReducible(int a, float r, ivec3 bcd) {
+    int b = bcd.x, c = bcd.y, d = bcd.z;
+    int absA = abs(a);
+
+    for (int q = 1; q <= absA; q++) {
+        if (absA % q != 0) continue;
+
+        float fq = float(q);
+        float fn = round(fq * r);
+
+        float fval = float(a) * fn * fn * fn
+                   + float(b) * fn * fn * fq
+                   + float(c) * fn * fq * fq
+                   + float(d) * fq * fq * fq;
+
+        if (abs(fval) < 0.5) return true;
+    }
+
+    return false;
+}
+
+// ============================================================
+// Line tracing
+//
+// March along base + t*dir for t >= 0.
+// The trace parameter t = |r|; the sign argument recovers
+// the actual real root r = sign * t.
+// ============================================================
+
+bool traceHalf(vec3 base, vec3 dir, float tMax,
+               float radius, int a, float sign) {
+    float speed = length(dir);
+    float t = 0.0;
+
+    for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = base + t * dir;
+        float d = sdfLatticeBalls(p, radius);
+
+        if (d < HIT_THRESHOLD) {
+            if (IRREDUCIBLE_ONLY) {
+                float r = sign * t;
+                ivec3 bcd = ivec3(round(p));
+                if (isReducible(a, r, bcd)) {
+                    t += (radius + HIT_THRESHOLD)
+                       / speed;
+                    continue;
+                }
+            }
+            return true;
+        }
+
+        t += d / speed;
+        if (t > tMax) break;
+    }
+
+    return false;
+}
+
+bool traceLine(vec3 base, vec3 dir, float tMax,
+               float radius, int a) {
+    if (traceHalf(base,  dir, tMax, radius, a,  1.0))
+        return true;
+    if (traceHalf(base, -dir, tMax, radius, a, -1.0))
+        return true;
+    return false;
+}
+
+// ============================================================
+// Coordinate map
+// ============================================================
+
+vec2 pixelToHalfPlane(vec2 fragCoord, vec2 resolution) {
+    vec2 uv = fragCoord / resolution;
+    float aspect = resolution.x / resolution.y;
+    return VIEW_CENTER
+         + (uv - 0.5)
+         * vec2(VIEW_HEIGHT * aspect, VIEW_HEIGHT);
+}
+
+// ============================================================
+// Main
+// ============================================================
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 z = pixelToHalfPlane(fragCoord, iResolution.xy);
+
+    if (z.y <= 0.0) {
+        fragColor = vec4(vec3(0.5), 1.0);
+        return;
+    }
+
+    float s = z.x;
+    float n = dot(z, z);
+
+    vec3 baseUnit = vec3(-2.0 * s, n, 0.0);
+    vec3 dirUnit  = vec3(-1.0, 2.0 * s, -n);
+
+    vec3 col = vec3(1.0);
+
+    for (int a = 1; a <= A_MAX; a++) {
+        vec3 base = float(a) * baseUnit;
+        vec3 dir  = float(a) * dirUnit;
+
+        if (traceLine(base, dir, R_MAX,
+                      BALL_RADIUS, a)) {
+            // Darker = smaller a (simpler polynomial)
+            float brightness =
+                float(a - 1) / float(A_MAX);
+            col = vec3(brightness);
+            break;
+        }
+    }
+
+    fragColor = vec4(col, 1.0);
+}
+\end{lstlisting}
+
+
+%% ================================================================
+\section{Quartic Shader}
+\label{app:quartic}
+%% ================================================================
+
+\begin{lstlisting}
+// ============================================================
+// QUARTIC ALGEBRAIC NUMBERS IN THE UPPER HALF PLANE
+//
+// A quartic with leading coefficient a and root z factors as
+//
+//   a * (x^2 - 2sx + n)(x^2 + px + q)
+//
+// where s = Re(z), n = |z|^2. Fix integer a, then fix
+// integer B = a(p - 2s), giving p = B/a + 2s. The remaining
+// three coefficients (C,D,E) trace a line parameterized by q:
+//
+//   L(q) = a(n - 2sp, np, 0) + q * a(1, -2s, n)
+//
+// Set A_MAX = 1 for monic only.
+//
+// Colors:
+//   BLACK/GRAY - irreducible, 2 complex + 2 real roots
+//   BLUE       - irreducible, 4 complex roots
+//   WHITE      - no hit
+// ============================================================
+
+// --- Search parameters ---
+const float BALL_RADIUS = 0.005;
+const float Q_MAX = 50.0;
+const float HIT_THRESHOLD = 0.001;
+const int   MAX_STEPS = 128;
+
+const int A_MAX = 3;
+const int B_RANGE = 10;
+
+// --- View ---
+const vec2 VIEW_CENTER = vec2(0.0, 1.5);
+const float VIEW_HEIGHT = 3.0;
+
+const bool IRREDUCIBLE_ONLY = true;
+
+const int NO_HIT = 0;
+const int HIT_GENERIC = 1;        // 2 complex + 2 real
+const int HIT_ALL_COMPLEX = 2;    // 4 complex roots
+
+// ============================================================
+// Lattice SDF
+// ============================================================
+
+float sdfLatticeBalls(vec3 pt, float radius) {
+    return length(pt - round(pt)) - radius;
+}
+
+// ============================================================
+// Irreducibility checks
+//
+// A quartic over Q is reducible iff:
+//   1. It has a rational root (linear factor), or
+//   2. It factors as two quadratics over Z.
+// There is no other case.
+// ============================================================
+
+// Evaluate ax^4+Bx^3+Cx^2+Dx+E at x = fn/fd in
+// homogeneous form (multiply through by fd^4).
+// Float arithmetic to avoid int overflow.
+float evalQuarticHom(int a, int B, int C, int D, int E,
+                     float fn, float fd) {
+    return float(a) * fn * fn * fn * fn
+         + float(B) * fn * fn * fn * fd
+         + float(C) * fn * fn * fd * fd
+         + float(D) * fn * fd * fd * fd
+         + float(E) * fd * fd * fd * fd;
+}
+
+// --- Check 1: rational linear factor ---
+//
+// If p^2 - 4q < 0, the second factor has no real roots,
+// so no linear factor exists. Otherwise, check whether
+// either real root is rational with denominator | a.
+// Threshold 0.5 is safe: nonzero evaluations of integer
+// polynomials at rationals have magnitude >= 1/denom^4.
+
+bool hasRationalRoot(int a, int B, int C, int D, int E,
+                     float p, float q) {
+    if (E == 0) return true;
+
+    float disc = p * p - 4.0 * q;
+    if (disc < 0.0) return false;
+
+    float sqrtDisc = sqrt(disc);
+    float r1 = (-p + sqrtDisc) / 2.0;
+    float r2 = (-p - sqrtDisc) / 2.0;
+
+    int absA = abs(a);
+    for (int div = 1; div <= absA; div++) {
+        if (absA % div != 0) continue;
+        float fd = float(div);
+
+        float fn = round(fd * r1);
+        if (abs(evalQuarticHom(a,B,C,D,E,fn,fd)) < 0.5)
+            return true;
+
+        fn = round(fd * r2);
+        if (abs(evalQuarticHom(a,B,C,D,E,fn,fd)) < 0.5)
+            return true;
+    }
+    return false;
+}
+
+// --- Check 2: product of two integer quadratics ---
+//
+// We want: (a1*x^2+P*x+Q)(a2*x^2+R*x+S) with a1*a2=a.
+// We know z, so any integer quadratic containing z must
+// have P ~ -2*a1*s. Try a window of 3 values around
+// the pixel-based estimate to handle rounding at
+// half-integers. The rest is determined algebraically.
+//
+// Looping a1 from 1 to |a| automatically covers both
+// assignments of which factor contains z.
+
+bool factorsAsIntegerQuadratics(
+        int a, int B, int C, int D, int E,
+        float s, float n) {
+    int absA = abs(a);
+
+    for (int a1 = 1; a1 <= absA; a1++) {
+        if (absA % a1 != 0) continue;
+        int a2 = a / a1;
+
+        // Pixel-based estimate for P
+        float fP = -2.0 * float(a1) * s;
+        int Pest = int(round(fP));
+
+        // Try Pest-1, Pest, Pest+1
+        for (int dP = -1; dP <= 1; dP++) {
+            int P = Pest + dP;
+
+            // x^3 coeff: a1*R + a2*P = B
+            int Rnum = B - a2 * P;
+            if (Rnum % a1 != 0) continue;
+            int R = Rnum / a1;
+
+            // sigma = C - P*R; then a2*Q and a1*S
+            // are roots of t^2 - sigma*t + a*E = 0
+            int sigma = C - P * R;
+            int disc = sigma*sigma - 4*a*E;
+            if (disc < 0) continue;
+
+            int sqrtDisc =
+                int(round(sqrt(float(disc))));
+            if (sqrtDisc*sqrtDisc != disc) continue;
+
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                int Qnum = sigma + sgn * sqrtDisc;
+                if (Qnum % (2*a2) != 0) continue;
+                int Q = Qnum / (2 * a2);
+
+                int Snum = sigma - a2 * Q;
+                if (Snum % a1 != 0) continue;
+                int S = Snum / a1;
+
+                // Verify x^1 coefficient
+                if (P*S + Q*R == D) return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool isReducible(int a, int B, int C, int D, int E,
+                 float p, float q, float s, float n) {
+    if (hasRationalRoot(a, B, C, D, E, p, q))
+        return true;
+    if (factorsAsIntegerQuadratics(a, B, C, D, E, s, n))
+        return true;
+    return false;
+}
+
+// ============================================================
+// Line tracing
+//
+// March along base + t*dir for t >= 0.
+// Trace parameter t = |q|; sign recovers q = sign * t.
+// ============================================================
+
+int traceHalf(vec3 base, vec3 dir, float tMax,
+              float radius, int a, int B, float p,
+              float sign, float s, float n) {
+    float speed = length(dir);
+    float t = 0.0;
+
+    for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 pt = base + t * dir;
+        float d = sdfLatticeBalls(pt, radius);
+
+        if (d < HIT_THRESHOLD) {
+            float q = sign * t;
+
+            if (IRREDUCIBLE_ONLY) {
+                ivec3 CDE = ivec3(round(pt));
+                if (isReducible(a, B,
+                        CDE.x, CDE.y, CDE.z,
+                        p, q, s, n)) {
+                    t += (radius + HIT_THRESHOLD)
+                       / speed;
+                    continue;
+                }
+            }
+
+            // Root type classification:
+            // First factor always has complex roots
+            // (disc = 4s^2 - 4n = -4y^2 < 0).
+            // Second factor x^2+px+q has complex roots
+            // iff p^2-4q < 0.
+            if (p*p - 4.0*q < 0.0)
+                return HIT_ALL_COMPLEX;
+            return HIT_GENERIC;
+        }
+
+        t += d / speed;
+        if (t > tMax) break;
+    }
+
+    return NO_HIT;
+}
+
+int traceLine(vec3 base, vec3 dir, float tMax,
+              float radius, int a, int B, float p,
+              float s, float n) {
+    int result = traceHalf(base, dir, tMax, radius,
+                           a, B, p, 1.0, s, n);
+    if (result != NO_HIT) return result;
+    return traceHalf(base, -dir, tMax, radius,
+                     a, B, p, -1.0, s, n);
+}
+
+// ============================================================
+// Coordinate map
+// ============================================================
+
+vec2 pixelToHalfPlane(vec2 fragCoord,
+                      vec2 resolution) {
+    vec2 uv = fragCoord / resolution;
+    float aspect = resolution.x / resolution.y;
+    return VIEW_CENTER
+         + (uv - 0.5)
+         * vec2(VIEW_HEIGHT * aspect, VIEW_HEIGHT);
+}
+
+// ============================================================
+// Main
+// ============================================================
+
+void mainImage(out vec4 fragColor,
+               in vec2 fragCoord) {
+    vec2 z = pixelToHalfPlane(fragCoord,
+                              iResolution.xy);
+
+    if (z.y <= 0.0) {
+        fragColor = vec4(vec3(0.5), 1.0);
+        return;
+    }
+
+    float s = z.x;
+    float n = dot(z, z);
+
+    int result = NO_HIT;
+    int hitA = 0;
+
+    for (int a = 1; a <= A_MAX; a++) {
+        float fa = float(a);
+        vec3 dirA = fa * vec3(1.0, -2.0 * s, n);
+
+        for (int B = -B_RANGE; B <= B_RANGE; B++) {
+            float p = (float(B)
+                     + 2.0 * fa * s) / fa;
+            vec3 base = fa * vec3(
+                n - 2.0 * s * p, n * p, 0.0);
+
+            result = traceLine(base, dirA, Q_MAX,
+                BALL_RADIUS, a, B, p, s, n);
+            if (result != NO_HIT) {
+                hitA = a; break;
+            }
+        }
+        if (result != NO_HIT) break;
+    }
+
+    vec3 col = vec3(1.0);
+    if (result != NO_HIT) {
+        float brightness =
+            float(hitA - 1) / float(A_MAX);
+        if (result == HIT_ALL_COMPLEX) {
+            col = mix(vec3(0.2, 0.4, 1.0),
+                      vec3(1.0), brightness);
+        } else {
+            col = vec3(brightness);
+        }
+    }
+
+    fragColor = vec4(col, 1.0);
+}
+\end{lstlisting}
+
+
+\end{document}
