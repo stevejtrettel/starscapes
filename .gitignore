@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated artifacts: prints, caches, presets — regenerable from specs
+outputs/
