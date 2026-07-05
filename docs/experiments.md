@@ -327,3 +327,115 @@ climbing 13 → 776 and ~1 ms per view. Mild ink drift at the extreme end
 (~3× vs prediction's ~2×) noted honestly; acceptable. Adopted in the live
 worker as one formula (cEff = sizeScale·cbrt(h/2.6)). Method write-up with
 derivations and the generalization path: docs/live-sampling.md.
+
+---
+
+## E10 — Local count quotas (plan: local-quota)
+**2026-07-04 · `scripts/experiments/local-quota.ts` · branch local-quota**
+
+**Question.** Do per-cell count quotas (32px cells, N* = 48, uniform depth
+as floor, two-pass margin harvest) deliver constant local texture density —
+in particular, populate the halo strips beside thick geodesics with their
+deep tiny dots — without the ink-budget pathologies (E6–E8)?
+
+**Setup.** Geodesic window (0.6 + 0.8i, h = 0.15) and the zoom ladder;
+quota vs uniform-depth baseline (current main). Metrics: per-cell owned
+count distribution (min/median over above-axis viewport cells), population
+in the halo strip | |z|²−1 | < 0.01, total population, time, determinism.
+
+**Prediction.** Min cell count ≥ N* except axis/work-guarded cells (vs
+near-0 minima at uniform depth near geodesics); halo-strip population
+several × baseline; total population ≈ N*·cells and roughly flat across
+zoom; time < ~100 ms typical, < ~500 ms at 500×; two runs IDENTICAL.
+Watched risk: visible texture steps at cell seams — Steve's eyes decide;
+recorded next options are smaller cells or interpolated quotas, not new
+accounting.
+
+**Result.** The contract holds perfectly; the halo prediction only partly.
+Confirmed: every above-axis cell reaches exactly its quota (min/median
+48/48 vs baseline min 24 — a 2× floor lift near the geodesic); population
+flat ~21k across the zoom ladder; determinism IDENTICAL; typical views
+~100 ms. Missed: (i) halo-strip enrichment is +9% (1,141 → 1,247), not
+"several ×" — diagnosed: a 32px cell OUTSIZES the halo, so a cell
+straddling the strip fills its 48 from the dense side and stops; quota
+granularity bounds halo targeting from below by cell size. (ii) extreme
+zoom 1.0 s at k=9 (per-cell-per-level call overhead, the mild residue of
+E7's cost shape). Options if Steve's eyes want more: CELL_PX 16 (finer
+targeting, 4× cells), or accept. No new accounting mechanisms — per the
+plan's own rule.
+
+---
+
+## E11 — Print-scale local quotas: filling the geodesic halos
+**2026-07-04 · `scripts/prints/geodesic-deep-quota.ts`**
+
+**Question.** The deep print (a ≤ 487) still shows ~24px halo bands (the
+existence law: nearest roots at 1/2A ≈ 0.001 world). Global depth to close
+them (~12,000) is impossible (population ∝ A³). But at PRINT resolution a
+32px cell ≈ halo width — E10's cell-outsizes-halo diagnosis inverts — and
+empty-level scans near geodesics cost only ∝ a·cellWidth (no members, no
+solving). Do print-scale local quotas fill the halos to ~pixel stipple for
+seconds of extra cost?
+
+**Prediction.** Halo bands narrow from ~24px toward ~1–2px stipple
+(sub-pixel dots at the min-px clamp); total population grows only
+modestly (strip cells stop at quota N* = 48; the deep strips hold few
+members by definition); added time < ~20 s; determinism holds. The rest
+of the picture is unchanged (quota floor = the uniform depth 487).
+
+**Result. PREDICTION FAILED, cleanly diagnosed.** Deepest level = 487 = the
+floor: no cell dug past it — every cell including halo cells met its quota
+within the uniform depth, because the halo band (±24px) is comparable to
+the 32px cell: straddling cells feed their quota from the dense side and
+stop (E10's geometry lesson, which the prediction wrongly claimed print
+scale would invert). Image ≈ identical to the plain deep print at 7× cost
+(24 s vs 3.6 s — levels-outer per-cell call overhead × 13,225 cells).
+Lesson (now twice-learned, recorded as a rule): QUOTAS EQUALIZE DENSITY AT
+CELL SCALE AND CANNOT TARGET FEATURES NARROWER THAN A CELL. Filling halos
+needs cells smaller than the halo — and tiny cells are only affordable
+offline if the march is restructured cells-outer (one contiguous
+cone range per cell — no live-streaming constraint offline), which also
+removes the per-level call overhead that made this run 7× slower.
+
+---
+
+## E12 — Sub-halo cells, cells-outer march (offline)
+**2026-07-04 · `scripts/prints/geodesic-fill.ts`**
+
+**Question.** With 8px cells (⅙ of the halo width; quota 3 ≈ same density
+target) and cells-outer iteration (one contiguous march per cell — no
+live-streaming constraint offline, no per-level call overhead), do the
+geodesic halos fill to ~pixel stipple at affordable cost?
+
+**Prediction.** Halo bands narrow from ±24px to ~±2px min-clamp stipple,
+fading in over ~a cell width at the halo boundary (8px cells still
+straddle there); the rest of the picture pixel-identical to the plain deep
+print (floor unchanged); population grows only by the strip contribution
+(quota-bounded, ~tens of thousands); total time < ~60 s; deterministic
+(block-granular stops).
+
+**Result. CONFIRMED.** Halo bands collapse from ±24px to thin seams with
+stipple filling to the existence limit; deepest cell marched to a = 1216
+(2.5× the floor — the digging finally happened); ALL 204,304 cells stopped
+by quota, zero work-guard bailouts; 3.28M polynomials in 29.9 s (within
+prediction); rest of the picture unchanged. The twice-learned rule held:
+cells (8px) smaller than the feature (±24px halo) target it; the
+cells-outer restructure made 204k cells affordable by removing per-level
+call overhead. Remaining known softness: fill fades over ~a cell width at
+halo boundaries; knife-edge filling, if ever wanted, is the geodesic-aware
+sub-family enumeration (Farey-indexed near-geodesic cones) — recorded as
+the future tool, not attempted.
+
+---
+
+## E10–E12 verdict (Steve's eyes, the final test)
+The E12 halo fill reads as SCATTERED NOISE inside the halos, not structure;
+the live quota (E10) is visually indistinguishable from uniform depth.
+Decision: the simple system stands on both paths — live = cone + derived
+depth + cube-root scale (unchanged main); prints = the same law at print
+depth (scripts/prints/geodesic-deep.ts). The quota machinery is retired to
+the experimental record (scripts/experiments/, tiling module kept for the
+scripts and its tests). Three attempts, one consistent lesson, now a house
+rule: local density equalization keeps failing the eye — if halo treatment
+is ever wanted, start from the MATHEMATICS (Farey-indexed near-geodesic
+sub-families), not from spatial accounting.
