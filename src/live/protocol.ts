@@ -12,12 +12,7 @@ export interface RenderRequest {
   view: { centerRe: number; centerIm: number; height: number };
   viewportW: number;
   viewportH: number;
-  style: {
-    sizeScale: number;
-    radiusCap: number;
-    /** Fraction of screen pixels the picture may ink; depth stops when spent. */
-    inkBudget: number;
-  };
+  style: { sizeScale: number; radiusCap: number };
 }
 
 export interface ChunkMessage {
@@ -32,10 +27,8 @@ export interface DoneMessage {
   type: "done";
   generation: number;
   polynomials: number;
-  /** Depth level reached when the ink budget was spent (or the guard). */
-  aReached: number;
-  /** Ink actually spent, as a fraction of screen pixels. */
-  inkFraction: number;
+  /** March depth for this view (derived from zoom — see worker). */
+  aMax: number;
   ms: number;
 }
 

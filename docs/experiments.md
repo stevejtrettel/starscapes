@@ -196,3 +196,125 @@ amendment (proposed, pending discussion): dots with pixel radius above a
 background threshold (~viewport scale) are emitted but spend no budget —
 they are few (expected count per level within a window is πy²c² ≈ 0.003)
 and structural; the budget regulates texture-scale ink only.
+
+---
+
+## E7 — Tiled (local) ink budget
+**2026-07-04 · `scripts/experiments/tiled-budget.ts` · branch tiled-ink-budget**
+
+**Question.** Does a per-tile ink budget (64px tiles, levels-outer march,
+background dots > tile scale ride free, work-guard backstop) fill the
+repulsion strips beside thick geodesics that the global budget (E6) left
+white, while keeping ink flat under zoom and time live-viable?
+
+**Setup.** (i) The E4–E6 zoom ladder at z₀ = 0.318 + 0.842i; (ii) a
+geodesic-adjacent window centered on the unit circle at 0.6 + 0.8i,
+height 0.15. Mirrors the worker exactly. β = 0.25.
+
+**Prediction.** Per-tile ink ≈ β across tiles including strip tiles (strips
+fill); depth spread depthMax ≫ depthMin in the geodesic window; population
+bounded ≲ 1,300 dots/tile; time < ~100 ms for typical views; two runs
+bit-identical (determinism).
+
+**E7 Result.** Core prediction confirmed (median tile ink flat 25–30% at
+all zooms; depth spread 16…2684 at k=0; determinism IDENTICAL) with two
+misses. (1) Time at extreme zoom: 2.5 s at k=9 — the pad ring is a fixed
+WORLD size while tiles shrink, inflating the grid 58× (76² tiles); giant-
+pass amendment designed but deferred. (2) THE REAL FAILURE, found by Steve
+in the browser and invisible to E7's median metric: blocky texture-less
+tiles, and the geodesic strips still white. Diagnosis: the medium-dot
+cliff — tile budget is 1,024 px², so any single dot of pixel radius ≥ 18
+exhausts its tile instantly; tiles on/near thick geodesics all contain
+such dots and stop before digging texture. Plus seam-adjacent dots charge
+full area to one owner, stepping depth across tile boundaries.
+
+---
+
+## E7b — Capped, bilinearly-shared ink charges
+**2026-07-04 · same script, amended accounting**
+
+**Question.** Do (a) per-dot charge capped at budget/8 (subsumes the
+binary background rule; no cliff) and (b) bilinear sharing of charges over
+the 4 nearest tile centers (fair seams) eliminate early-stopped tiles and
+fill the geodesic strips?
+
+**Prediction.** Early-stop fraction (tiles stopping within 3 levels) drops
+to ~0 at every zoom and in the geodesic window; median tile ink stays ≈ β;
+determinism holds; blockiness judged by eye in the browser (no numeric
+proxy yet).
+
+**Result.** Early-stop tiles: 0% at every zoom level AND in the geodesic
+window (was the E7 failure mode); depthMin rises from 1–2 to 17–78 (every
+tile digs before stopping); median tile ink flat 25–28%; determinism
+IDENTICAL; all 31 tests green. Time at extreme zoom worsens as expected
+(4.8 s at k=9 — no early quitting + the unfixed pad-ring inflation; the
+giant-pass amendment remains designed-and-pending). Visual verdict on
+blockiness and strips: Steve's eyes in the browser.
+
+---
+
+## E8 — The simple approach vs v1's tube, forensically
+**2026-07-04 · `scripts/experiments/simple-vs-tube.ts`**
+
+**Question.** Steve: the tiled system is overly complex AND still leaves
+gaps near geodesics that v1 (ray tube, visual ε, derived depth, draw
+everything) did not have. Which ingredient of v1 filled those regions —
+the absence of a budget (depth alone suffices), or the tube's membership
+(over-collection beyond exact window roots)? And does the SIMPLEST cone
+version — cone enumeration, v1's depth law, no budget machinery at all —
+reproduce v1's look?
+
+**Setup.** Geodesic window on the unit circle (center 0.6 + 0.8i, height
+0.15, 700 px). Three renders, same style: (A) simple-cone: Φ_cone at
+depth 3·A_vis, everything drawn; (B) v1 tube: harvestQuadratics, visual
+ε₀ = 2c, same depth; (C) box(40) reference. Count dots landing in the
+strip | |z|² − 1 | < 0.01.
+
+**Prediction.** Genuinely split — this experiment exists to decide it:
+if A ≈ B with strips filled in both, the budget was the culprit and the
+simple approach wins; if B fills the strip and A does not, the tube
+membership was the filler and we study exactly which polynomials B has
+there. (C expected to show the classic hard gap.)
+
+**Result.** Decisive. The simple cone is a strict SUPERSET of v1's tube in
+the strip: 37,168 strip roots vs the tube's 14,007 (box: 2,440), in 149 ms
+vs 2,176 ms. Images near-identical in structure — geodesics as beaded
+chains with only the thin TRUE existence halos (a root at distance d from
+|z|=1 requires a ≥ 1/2d), regions around them fully textured in both; the
+cone version denser. Membership was never the problem. THE BUDGET WAS THE
+CULPRIT: every gap Steve saw came from budget machinery stopping depth
+near geodesics, and every epicycle (tiles, caps, bilinear shares) was
+compensation for the previous epicycle.
+
+**Conclusion.** Adopt the simple approach for the live view: cone
+enumeration + v1's derived depth law + draw everything. Delete the budget,
+tiles, caps, and shares. The one honest cost: deep-zoom ink saturation
+(the original all-black report) returns as a KNOWN, deferred issue — the
+single-formula candidate (zoom-adaptive size scale c ∝ h^{1/3}, constant
+ink by derivation, no mechanism) is on file when it matters.
+
+**Addendum (Steve, on the halos).** The existence gap is a theorem at
+FIXED depth only: dig deeper locally and tiny dots genuinely live inside
+the halos (distance d from the geodesic admits roots once a ≳ 1/2d). For
+polished/print renders we WANT those dots — locally deeper marching near
+structure for constant density. The concept of depth adaptation is
+therefore validated for the OFFLINE path; only its live incarnation as
+budget machinery failed. Open design item, to be taken up with the
+population-contract framework when prints demand it. (tiled-budget.ts
+removed with the mechanism it measured; git history keeps both.)
+
+---
+
+## E9 — Zoom-adaptive size scale: c(h) = c₀·(h/h₀)^⅓
+**2026-07-04 · `scripts/experiments/zoom-scale.ts`**
+
+**Question.** Total ink of the simple system scales as c³/h (saturation
+theorem + depth law A ∝ c/h). Does the one-formula fix — size scale
+c(h) = c₀·(h/2.6)^⅓ in the live worker, wide view unchanged — hold both
+population and summed dot area per screen roughly flat across the zoom
+ladder, where the fixed-c system doubles per level?
+
+**Prediction.** Population and ink fraction (Σ per-dot pixel area, each
+dot clipped at screen area) flat within ~2× across k = 0…9, vs ~2×/level
+growth at fixed c. Depth still grows (A ∝ c(h)/h ∝ h^(−2/3)) — zooming
+still summons deeper mathematics, just at constant visual budget.

@@ -10,7 +10,7 @@ import type { RenderRequest, WorkerMessage } from "./protocol.ts";
 export interface RenderCallbacks {
   /** First chunk of a generation arrives with `first: true` — swap buffers then. */
   onChunk(instances: Float32Array, count: number, first: boolean): void;
-  onDone(stats: { polynomials: number; aReached: number; inkFraction: number; ms: number }): void;
+  onDone(stats: { polynomials: number; aMax: number; ms: number }): void;
 }
 
 export interface RenderService {
@@ -18,7 +18,7 @@ export interface RenderService {
 }
 
 export function createRenderService(
-  style: { sizeScale: number; radiusCap: number; inkBudget: number },
+  style: { sizeScale: number; radiusCap: number },
   callbacks: RenderCallbacks,
 ): RenderService {
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
@@ -33,12 +33,7 @@ export function createRenderService(
       seenFirstOf = generation;
       callbacks.onChunk(msg.instances, msg.count, first);
     } else {
-      callbacks.onDone({
-        polynomials: msg.polynomials,
-        aReached: msg.aReached,
-        inkFraction: msg.inkFraction,
-        ms: msg.ms,
-      });
+      callbacks.onDone({ polynomials: msg.polynomials, aMax: msg.aMax, ms: msg.ms });
     }
   };
 

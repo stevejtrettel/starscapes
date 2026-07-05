@@ -14,7 +14,7 @@ const hud = document.getElementById("hud") as HTMLDivElement;
 const gl = canvas.getContext("webgl2");
 if (!gl) throw new Error("WebGL2 unavailable");
 
-const STYLE = { sizeScale: 0.035, radiusCap: 0.5, inkBudget: 0.25 };
+const STYLE = { sizeScale: 0.035, radiusCap: 0.5 };
 const renderer = createDiskRenderer(gl, { radiusCap: STYLE.radiusCap });
 let camera: Camera = { centerRe: 0, centerIm: 1.1, height: 2.6 };
 
@@ -31,10 +31,8 @@ const service = createRenderService(STYLE, {
     }
     repaint = true;
   },
-  onDone({ polynomials, aReached, inkFraction, ms }) {
-    status =
-      `${polynomials} polys · depth a ≤ ${aReached} · ` +
-      `ink ${(100 * inkFraction).toFixed(0)}% · ${ms.toFixed(0)} ms`;
+  onDone({ polynomials, aMax, ms }) {
+    status = `${polynomials} polys · depth a ≤ ${aMax} · ${ms.toFixed(0)} ms`;
     repaint = true;
   },
 });
