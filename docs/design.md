@@ -69,6 +69,13 @@ transport re-evaluates, never inherits).
    - Relevance is guaranteed by construction: every harvested polynomial has
      a root in the window, at any zoom — zooming is asking for more
      mathematics.
+   - *Superseded in implementation (2026-07-04):* the trace-point/ray
+     formulation above remains the SHADER MODE's mathematics and the CPU
+     reference for it, but the point pipeline realizes inverse search by
+     **view-cone enumeration** — the same population, enumerated directly
+     with work ∝ population, no seeds or tubes (E4/E5/E8;
+     [live-sampling.md](live-sampling.md)). The "zooming asks for more
+     mathematics" property carries over unchanged.
 
 ### Target — two renderers, one downstream
 Both search modes feed one pipeline: solve → derived quantities → style →
@@ -223,21 +230,24 @@ reference material alongside limit-sets and variety-point-clouds. This repo
 gets cleared when building begins and the new system starts clean.
 
 **Build order** (each phase ends in something visible; adjustable as we
-learn):
-1. **Offline print.** Core spine — quadratics + cubics, forward search,
-   first invariants (disc, height, irreducible), both compositing modes —
-   driven by a Node script producing a real PNG.
-2. **Inverse sampler** (swapped ahead of the explorer, 2026-07-04: the
-   offline pipeline is its natural test harness — deterministic image
-   diffs against exhaustive forward ground truth — and the explorer only
-   becomes magical with it). March-harvest-dedupe as a search mode;
-   quadratics first (the ray case, no slicing loop), cubics second.
-3. **Live explorer.** Raw-WebGL2 disk view over the same core: pan/zoom,
-   restyle, spec export (the explore → print handshake closes). General
-   degree via Aberth–Ehrlich lands alongside as needed.
+learn). Status as of 2026-07-04:
+1. **Offline print — ✅ done** (minus `irreducible`): core spine, quadratics
+   + cubics, forward search, disc/height invariants, both compositing
+   modes, first-light and cubics prints.
+2. **Inverse sampler — ✅ done for quadratics**, realized as view-cone
+   enumeration after E4–E8 (see the supersession note in Level 0 and
+   live-sampling.md); ray version retained as the shader-mode reference.
+   Cubics: the next mathematics (cofactor cutoff + per-family constant-ink
+   exponent, live-sampling.md §5).
+3. **Live explorer — ✅ working** (pan/zoom, worker streaming, derived
+   depth, constant-ink zoom; deep prints from any window via script).
+   **Missing: the save button** — recipe export, the explore → print
+   handshake — the one open piece of explorer v1.
 4. **The rest by priority:** march view as a direct image, symmetry
    exploitation, continuous families, δ-certification escalation tiers,
-   Galois invariants, workers at scale, tiling for beyond-RAM prints.
+   Galois invariants, workers at scale, tiling for beyond-RAM prints,
+   and (parked with direction) Farey-indexed near-geodesic sub-families
+   for halo treatment.
 
 ## Level 2 — Inverse sampler mathematics (partially settled)
 

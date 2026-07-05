@@ -52,3 +52,25 @@ amend the document when we amend the rules.*
 - Abstractions arrive with their second consumer, not before (no unified
   Solver interface, status flags, or bigint tier until their consumers
   exist).
+
+## Research process (adopted 2026-07-04, after being earned the hard way)
+- **Experiments** (scripts, notebook): question → setup → PREDICTION
+  (written before the run) → result → conclusion, in docs/experiments.md.
+  Parameter changes are hypotheses, not reactions. Failed predictions get
+  recorded verbatim — they carry the most information.
+- **Change tiers.** Tier 1 (scripts/experiments): current speed. Tier 2
+  (engine code in src/): a written proposal Steve approves BEFORE any edit,
+  landing with its test, one change in flight; work on a branch Steve
+  reviews and merges. Tier 3 (contracts/interfaces, anything in design.md):
+  proposal + design-doc edit, and don't proceed the same day it was decided
+  unless Steve says so.
+- **Derivations over mechanisms.** Prefer a formula derived from the size
+  law / population math to any accounting machinery; when a mechanism needs
+  an epicycle, re-derive instead (E6–E12: budgets, tiles, and quotas each
+  lost to one line of algebra or to nothing).
+- **Equivalence against a reference** is the house test standard: a new
+  algorithm lands with a proof-by-comparison against the naive/old
+  implementation (cone ≡ brute force; sliced ≡ whole; two-pass ≡ one-pass).
+- **The final test is Steve's eyes.** Numbers gate; only looking decides.
+- Steve makes all commits (suggested messages provided); `outputs/` is
+  never committed; recipes are scratch until deliberately promoted.

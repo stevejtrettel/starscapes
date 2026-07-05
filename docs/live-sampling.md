@@ -74,11 +74,17 @@ Roots avoid geodesics by an exact law — e.g. | |z|² − 1 | = |c − a|/a ≥
 near the unit circle, so a root at distance d requires a ≥ 1/2d. The thin
 white halos along thick geodesics are therefore theorems at any fixed
 depth; they fill with genuinely tiny dots as depth grows locally. The live
-view accepts the halos of its derived depth. Locally-adaptive depth (dig
-deeper near structure to show the halo population) is validated as a
-concept and wanted for POLISHED OFFLINE renders — an open design item
-under the population-contract framework, deliberately not live machinery
-(E7/E7b are the record of why).
+view accepts the halos of its derived depth; prints tighten them simply by
+having smaller pixels (print depth ∝ resolution).
+
+**Locally-adaptive depth was tried three times and rejected by eye**
+(ink budgets E6–E8; live count quotas E10; print-scale sub-halo quotas
+E11–E12 — the last filled the halos *numerically* but the fill reads as
+scattered noise, not structure). The recorded verdict and rule: local
+density equalization by spatial accounting keeps failing visually. If halo
+treatment is wanted later, start from the mathematics — the near-geodesic
+populations are honest sub-families (c/a ≈ p/q, Farey-indexed) to be
+enumerated, sized, and colored deliberately as their own layer.
 
 ## 5. Generalization to other families
 
