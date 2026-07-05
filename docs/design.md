@@ -305,6 +305,13 @@ the tube-radius lemma for Φ_disc's proved plan; slicing-coordinate choice
 for constrained families (cofactor vs numerically optimal bases,
 degenerate z); symmetry hooks in the march.
 
+**The live view's settled sampling method — view-cone enumeration, the
+derived depth law, and the constant-ink scale law c(h) ∝ h^⅓ — is written
+up with its derivations and generalization path in
+[live-sampling.md](live-sampling.md)** (validated in experiments E4–E9;
+the population is Φ_cone(W, A), the first named, provably complete
+contract in the codebase).
+
 ## Remaining Level 2 conversations
 1. Rendering semantics in detail (tone mapping, antialiasing, gallery
    quality) — refined during phases 1–2 as real images exist to judge.

@@ -318,3 +318,12 @@ ladder, where the fixed-c system doubles per level?
 dot clipped at screen area) flat within ~2× across k = 0…9, vs ~2×/level
 growth at fixed c. Depth still grows (A ∝ c(h)/h ∝ h^(−2/3)) — zooming
 still summons deeper mathematics, just at constant visual budget.
+
+**Result.** Confirmed decisively. Fixed c across the ladder: population and
+ink explode (k=9: 430,711,000 polynomials, 149,636% of screen ink — the
+saturation theorem in full bloom). Adaptive c(h): population ~flat
+(19,820 → 46,960) and ink 5–17% from home to 500× zoom, with depth still
+climbing 13 → 776 and ~1 ms per view. Mild ink drift at the extreme end
+(~3× vs prediction's ~2×) noted honestly; acceptable. Adopted in the live
+worker as one formula (cEff = sizeScale·cbrt(h/2.6)). Method write-up with
+derivations and the generalization path: docs/live-sampling.md.
