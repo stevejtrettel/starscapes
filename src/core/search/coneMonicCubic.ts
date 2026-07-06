@@ -13,6 +13,7 @@
  * from the ≤ 2 valid s-intervals are merged before emission.
  */
 import { monicPolynomials } from "../family/lattice.ts";
+import { requirePower, type SizingRule } from "../sizing.ts";
 import {
   DUST_FACTOR,
   fattenWindow,
@@ -166,18 +167,28 @@ export function constantInkScaleMonicCubic(c0: number, h: number, homeH: number)
 /**
  * The backward strategy for monic integer cubics: Φ₃ᵐᵒⁿ(W, ρ) with the
  * real-root reach ρ derived from visibility (docs/monic-cubic-sampling.md
- * §3): ρ = R·√(3c/(2·worldPerPixel)), R the dust dial. The window is
- * fattened by c — generous vs the largest escaping dot (labeled heuristic,
- * matching the live worker's validated look).
+ * §3). The derivation holds for the uniformity law (γ, δ) = (1, ½) —
+ * pulled from the bound sizing rule per Option A (sizing.ts). The §3
+ * formula ρ = R·√(3c/(2·worldPerPixel)) is stated in the disc¼-form
+ * constant c_disc = c_f′/√2 (sizing.ts conversion identities), so the
+ * pulled f′-form c converts before entering it; R is the dust dial. The
+ * window is fattened by c_disc — generous vs the largest escaping dot
+ * (labeled heuristic, matching the live worker's validated look).
+ *
+ * `deriveFrom` binds the cutoffs to a REFERENCE rule instead of the drawn
+ * one — the explicit escape hatch for comparison prints.
  */
-export function viewConeMonicCubics(opts: { dustR?: number } = {}): SearchStrategy {
+export function viewConeMonicCubics(
+  opts: { dustR?: number; deriveFrom?: SizingRule } = {},
+): SearchStrategy {
   const dustR = opts.dustR ?? DEFAULT_DUST_R;
   const family = monicPolynomials({ degree: 3 });
   return {
     mode: "backward",
     family,
     populationFor(view: ViewContext): Population {
-      const c = view.sizeScale;
+      const sizing = opts.deriveFrom ?? view.sizing;
+      const c = requirePower(sizing, 1, 0.5, "viewConeMonicCubics").c / Math.SQRT2;
       const rho = dustR * Math.sqrt((DUST_FACTOR * c) / (2 * view.worldPerPixel));
       const window = fattenWindow(view.window, c);
       return {

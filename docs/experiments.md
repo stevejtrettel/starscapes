@@ -467,3 +467,33 @@ first run). Also learned: the visibility-depth population is SPARSE
 (~800 dots at the home frame) — monic cubic print texture comes from extra
 dust depth, cheap since population ∝ ρ³ (a ×4 dust multiplier on ρ buys
 ×64 dots).
+
+## E14 — Is the 0.5 hyperbolic cap doing anything? (plan: cap-off)
+
+**Question.** Steve (2026-07-06, sizing-rule design conversation): same
+pictures, same settings, cap removed — what changes? Feeds the settled
+SizingRule contract, where the cap is a named, removable field.
+
+**Setup.** The two canonical frames through the cone strategies at 1600px,
+opaque, cap = 0.5 hyperbolic vs cap = ∞: quadratics classic c = 0.035
+(view 0+1.1i, h 2.6); monic cubics disc¼ c = 0.03, R = 4, irreducible
+(view 0+1.0i, h 2.4). Metric: changed-pixel count per pair, plus the eyes.
+
+**Prediction** (written before the run). Quadratics: **bit-identical, 0
+changed pixels** — the cap is provably inert: |disc| ≥ 3 for complex pairs
+(disc ≡ 0, 1 mod 4), so hyperbolic radius ≤ c/√3 ≈ 0.02 ≪ 0.5 everywhere.
+Cubics: identical except a thin band y ≲ 2c/|disc|^¼ ~ 0.03 hugging the
+real axis, where reach-limited dust (|r−z| ≤ ρ forces |disc| ≤ 4y²ρ⁴ small)
+exceeds cap·y by up to ~3×; uncapped it thickens/darkens slightly and dots
+may straddle ℝ. No large-scale change anywhere else.
+
+**Result. CONFIRMED, both halves.** Quadratics: 0 of 2,560,000 pixels
+changed — the cap is empirically inert exactly as the |disc| ≥ 3 argument
+requires. Cubics: 1,256 pixels (0.049%) changed, ALL in world
+y ∈ [0.0025, 0.028] against the predicted band y ≲ 0.03 (real axis at row
+1467, changes in rows 1448–1465). Drawn counts identical (the cap touches
+size only, never membership). Conclusion: at standard settings the cap is
+a near-axis dust regularizer for cubics and a no-op for quadratics; making
+it a named removable field (settled SizingRule contract) costs nothing
+anywhere else. Whether the uncapped near-axis band looks better or worse
+is Steve's call: outputs/e14-*.png.

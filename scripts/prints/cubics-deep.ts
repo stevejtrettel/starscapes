@@ -6,6 +6,7 @@
  */
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
+import { discLaw } from "../../src/core/sizing.ts";
 import { irreducibleOnly, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
@@ -14,8 +15,8 @@ const BOUND = 30; // 30 · 61³ ≈ 6.8M cubics
 const SIZE = 3600;
 
 const style: Style = {
-  sizeUnits: "hyperbolic",
-  size: (r) => Math.min(0.5, 0.03 / Math.sqrt(Math.abs(r.disc))),
+  // c·y/√|disc| — the steep (γ, δ) = (2, 2) point at degree 3 (sizing.ts).
+  sizing: discLaw({ alpha: 0.5, beta: 1, c: 0.03, degree: 3 }),
   color: solid(0.05, 0.05, 0.05),
 };
 

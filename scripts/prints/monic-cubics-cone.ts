@@ -14,6 +14,7 @@
  */
 
 import { viewConeMonicCubics } from "../../src/core/search/coneMonicCubic.ts";
+import { classic, discLaw, type SizingRule } from "../../src/core/sizing.ts";
 import { irreducibleOnly, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
@@ -23,30 +24,32 @@ const C_SZ = Number(process.argv[3] ?? 0.03);
 const SIZING = (process.argv[4] ?? "disc") as "disc" | "fprime" | "disc4";
 const W_PX = Number(process.argv[5] ?? 3600);
 const H_PX = Number(process.argv[6] ?? W_PX);
-const RADIUS_CAP = 0.5;
 
-/** World radius per law; q = √|disc|/(2y). */
-const sizes: Record<typeof SIZING, Style["size"]> = {
-  disc: (row) => Math.min(RADIUS_CAP * row.im, (C_SZ * row.im) / Math.sqrt(Math.abs(row.disc))),
-  fprime: (row) => {
-    const q = Math.sqrt(Math.abs(row.disc)) / (2 * row.im);
-    return Math.min(RADIUS_CAP * row.im, C_SZ / (2 * Math.sqrt(q)));
-  },
-  disc4: (row) => Math.min(RADIUS_CAP * row.im, C_SZ / Math.sqrt(Math.sqrt(Math.abs(row.disc)))),
+/** The three laws as declared rules (sizing.ts; conversions in its doc). */
+const laws: Record<typeof SIZING, SizingRule> = {
+  disc: discLaw({ alpha: 0.5, beta: 1, c: C_SZ, degree: 3 }), // (γ, δ) = (2, 2), steep
+  fprime: classic(C_SZ), //                                      (γ, δ) = (1, 1), vivid
+  disc4: discLaw({ alpha: 0.25, beta: 0, c: C_SZ, degree: 3 }), // (1, ½), the uniformity locus
 };
 
 const style: Style = {
-  sizeUnits: "world",
-  sizeScale: C_SZ,
-  size: sizes[SIZING],
+  sizing: laws[SIZING],
   color: solid(0.05, 0.05, 0.05),
 };
+
+// The reach derivation holds for the disc¼ / uniform law; the disc and
+// fprime comparisons draw their laws over that reference population —
+// explicit via deriveFrom, matching what the comparison prints always did.
+const search = viewConeMonicCubics({
+  dustR: DUST_R,
+  deriveFrom: laws.disc4,
+});
 
 console.log(`monic-cubics-cone: ${W_PX}x${H_PX}px, c = ${C_SZ}, ${SIZING}, R = ${DUST_R}`);
 const t0 = performance.now();
 
 const result = renderPrint({
-  search: viewConeMonicCubics({ dustR: DUST_R }),
+  search,
   filters: [upperHalfPlane, irreducibleOnly],
   style,
   view: { center: [0, 1.0], height: 2.4 },

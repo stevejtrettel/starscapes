@@ -8,6 +8,7 @@
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box, enumerateBox } from "../../src/core/search/forward.ts";
 import { harvestQuadratics, inverse } from "../../src/core/search/inverse.ts";
+import { classic } from "../../src/core/sizing.ts";
 import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
@@ -82,8 +83,7 @@ if (missedDiscs.length > 0) {
 
 // --- Render both for the eyeball diff -------------------------------------
 const style: Style = {
-  sizeUnits: "hyperbolic",
-  size: (r) => Math.min(0.5, 0.035 / Math.sqrt(Math.abs(r.disc))),
+  sizing: classic(0.035),
   color: solid(0.05, 0.05, 0.05),
 };
 for (const [name, search] of [

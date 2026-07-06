@@ -18,6 +18,7 @@
  * still get drawn.
  */
 import { integerPolynomials } from "../family/lattice.ts";
+import { requirePower, type SizingRule } from "../sizing.ts";
 import {
   DUST_FACTOR,
   fattenWindow,
@@ -97,19 +98,26 @@ export function constantInkScaleQuadratic(c0: number, h: number, homeH: number):
 
 /**
  * The backward strategy for integer quadratics: Φ_cone(W, A) at the derived
- * visibility depth (live-sampling.md §2). A hyperbolic-law dot from leading
- * coefficient a has world radius c/2a independent of its height, so
- * visibility means a ≤ c/(2·worldPerPixel); dust factor ×3, floored at
- * DEPTH_FLOOR. The window is fattened by the largest dot radius (c/2 at
- * a = 1) so dots centered just outside the view still get drawn.
+ * visibility depth (live-sampling.md §2). The derivation holds for the
+ * classic law (γ, δ) = (1, 1) — pulled from the bound sizing rule per
+ * Option A (sizing.ts): a classic-law dot from leading coefficient a has
+ * world radius c·y/|f′(z)| = c/2a independent of its height, so visibility
+ * means a ≤ c/(2·worldPerPixel); dust factor ×3, floored at DEPTH_FLOOR.
+ * The window is fattened by the largest dot radius (c/2 at a = 1) so dots
+ * centered just outside the view still get drawn.
+ *
+ * `deriveFrom` binds the cutoffs to a REFERENCE rule instead of the drawn
+ * one — the explicit escape hatch for comparison prints (draw law X over
+ * the classic-law population).
  */
-export function viewConeQuadratics(): SearchStrategy {
+export function viewConeQuadratics(opts: { deriveFrom?: SizingRule } = {}): SearchStrategy {
   const family = integerPolynomials({ degree: 2 });
   return {
     mode: "backward",
     family,
     populationFor(view: ViewContext): Population {
-      const c = view.sizeScale;
+      const sizing = opts.deriveFrom ?? view.sizing;
+      const c = requirePower(sizing, 1, 1, "viewConeQuadratics").c;
       const aMax = Math.max(
         DEPTH_FLOOR,
         Math.ceil((DUST_FACTOR * c) / (2 * view.worldPerPixel)),

@@ -360,6 +360,65 @@ chosen*.
   into the strategies, in core, cited to their doc sections); the ray/tube
   harvest stays the shader-mode reference, not wrapped in v1.
 
+## Level 3 — Sizing rules in code (settled 2026-07-06)
+
+Styling's size half becomes a pillar like search: an interface, a named
+library, and arbitrary hand-written rules staying first-class. Power laws
+and visibility-derived backward search are *compatible options, not
+requirements* of the pillar.
+
+- **A sizing rule returns the Euclidean world radius — the size we actually
+  draw.** No units flag: a rule wanting hyperbolic behavior writes the `· y`
+  itself (or uses a named law that does).
+- **The cap is standardized under a transparent name**: `cap` in hyperbolic
+  units — no dot exceeds cap · y world radius (today's universal 0.5). It is
+  **removable**: uncapped is a legitimate setting, and comparison figures
+  (same picture, cap off) are a queued Tier-1 experiment.
+- **Declared power structure, f′ form.** A rule may declare
+  `power = { c, gamma, delta }`, meaning
+
+      r = c · y^δ / |f′(z)|^γ,   z the plotted root.
+
+  Chosen over the disc form r = c·y^β/|disc|^α because *within* a degree
+  the two are linear reparametrizations of the same 2-parameter family
+  (deg 2: |f′(z)| = √|disc|; deg 3: |f′(z)|² = 2y·√|disc|), but *across*
+  degrees only the f′ coordinates keep the same look at the same exponents:
+  the uniformity locus is (γ, δ) = (1, ½) at degrees 2 AND 3 (verified
+  2026-07-05), the classic hyperbolic look is (1, 1) at both. And
+  |f′(z)| = |a|·∏|z − w| over the co-roots computes degree-generically from
+  root slots — new degrees inherit the whole vocabulary with their solver.
+  **Steve's condition: the implementation must document this extremely
+  clearly** — the power-law constructor's doc comment states the form, the
+  coordinate-choice argument, and the placement table below; a `discLaw(α,
+  β, degree)` convenience may convert into f′ form.
+- **Coupling to backward search: the strategy pulls (Option A).** A backward
+  strategy needing size structure reads the declared `power` from
+  ViewContext and derives its cutoffs; binding a structure-needing strategy
+  to an opaque rule fails loudly at bind time. Opaque rules remain fully
+  usable with forward searches and structure-free strategies.
+  `Population.describe()` keeps freezing the derived cutoffs into artifacts.
+- **Placement of existing code** (executed 2026-07-06, pixel-equivalence
+  verified bit-identical on first-light, quadratics-cone, monic-cubics-cone)
+  — every law in the pre-refactor repo was a lattice point of the f′ form,
+  now expressed through the named library:
+
+  | today | (γ, δ) |
+  |---|---|
+  | quadratic classic c/√\|disc\| (worker, quadratics-cone std) | (1, 1) |
+  | quadratic uniform (quadratics-cone) | (1, ½) |
+  | cubic "disc" steep (monic-cubics-cone) | (2, 2) |
+  | cubic "fprime" vivid (monic-cubics-cone) | (1, 1) |
+  | cubic "disc4" uniformity locus (worker, monic-cubics-cone) | (1, ½) |
+  | style.ts `hyperbolicSize` scale/\|disc\| (first-light only) | (2, 1) |
+
+  The four inline transcriptions (live worker ×2, both cone print scripts)
+  now route through the named laws, via the one shared styling loop
+  (core/stylePass.ts — live and print cannot drift); `hyperbolicSize`'s
+  "canonical" doc comment was a misnomer for the (2, 1) point and the
+  function is gone.
+- **Coloring rules are the next conversation** (a parallel vocabulary over
+  the same root row: Galois class, disc sign, height, …). Not settled here.
+
 ## Level 3 — Code conventions (settled)
 
 - **Coefficient storage is ascending**: `coeffs[k]` is a_k, the coefficient

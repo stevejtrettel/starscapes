@@ -8,6 +8,7 @@
  * per-family derivations (see cone.ts, coneMonicCubic.ts).
  */
 import type { Family } from "../family/types.ts";
+import type { SizingStructure } from "../sizing.ts";
 
 /** A window on ℂ: left/top corner plus world extents. */
 export interface Window {
@@ -36,18 +37,20 @@ export function fattenWindow(w: Window, pad: number): Window {
 export const DUST_FACTOR = 3;
 
 /**
- * What a strategy sees when binding. Carries the style's size scale as
- * well as the window: derived depth is style-dependent through visibility.
- * Populations are view- AND style-dependent by design (Φ_visible), not by
- * leak.
+ * What a strategy sees when binding. Carries the style's sizing structure
+ * as well as the window: derived depth is style-dependent through
+ * visibility. Populations are view- AND style-dependent by design
+ * (Φ_visible), not by leak. Strategies that derive from size structure
+ * pull the declared power law via requirePower (sizing.ts, Option A) and
+ * fail loudly when it is absent or the wrong point.
  */
 export interface ViewContext {
   /** The view's window, unfattened — strategies add their own escape pad. */
   readonly window: Window;
   /** World units per output pixel (h / viewportH): the visibility threshold. */
   readonly worldPerPixel: number;
-  /** The style's declared size-scale constant c, at this view. */
-  readonly sizeScale: number;
+  /** The style's sizing structure: cap + declared power law, if any. */
+  readonly sizing: SizingStructure;
 }
 
 /** Kernel-dialect sink: reused coefficient batches, stride degree + 1,

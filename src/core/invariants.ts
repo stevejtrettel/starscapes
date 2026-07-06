@@ -3,6 +3,7 @@
  * and visible to style and filter functions. Exact while inputs are exact
  * integers with intermediates below 2⁵³ (see conventions.md).
  */
+import type { RootSlots } from "./solve/types.ts";
 
 /** Discriminant, degrees 2 and 3 (higher degrees arrive with their solver). */
 export function discriminant(coeffs: Float64Array, off: number, degree: number): number {
@@ -44,6 +45,35 @@ export function quadraticIrreducible(disc: number): boolean {
   if (disc < 0) return true;
   const s = Math.round(Math.sqrt(disc));
   return s * s !== disc;
+}
+
+/**
+ * |f′(z)| at the k-th root of the i-th polynomial in a RootSlots, from the
+ * factorization: f = a_d·∏(x − w_j)^{m_j} gives, at a SIMPLE root z,
+ * f′(z) = a_d·∏_{w_j ≠ z}(z − w_j)^{m_j}; at a multiple root f′(z) = 0
+ * exactly. Degree-generic — this is the power-law sizing coordinate
+ * (sizing.ts), needing no per-family formula. For the quadratic complex
+ * pair it equals √|disc| and for the monic-cubic pair √(2y·√|disc|), up to
+ * the roots' own float error (~1 ulp relative).
+ */
+export function fprimeAt(
+  slots: RootSlots,
+  degree: number, i: number, k: number, leadAbs: number,
+): number {
+  const base = i * degree;
+  if (slots.mult[base + k] > 1) return 0;
+  const zr = slots.re[base + k];
+  const zi = slots.im[base + k];
+  let prod = leadAbs;
+  for (let j = 0; j < slots.count[i]; j++) {
+    if (j === k) continue;
+    const dr = zr - slots.re[base + j];
+    const di = zi - slots.im[base + j];
+    const d2 = dr * dr + di * di;
+    const m = slots.mult[base + j];
+    prod *= m === 1 ? Math.sqrt(d2) : m === 2 ? d2 : d2 ** (m / 2);
+  }
+  return prod;
 }
 
 /**

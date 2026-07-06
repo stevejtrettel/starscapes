@@ -2,109 +2,44 @@
  * The render worker: bind the family's backward strategy to the view,
  * stream Φ, solve, style, ship instances. The sampling laws (visibility
  * depth, reach, pad, constant-ink zoom scale) live in core with the
- * strategies (src/core/search/, design.md Level 3 "Search strategies in
- * code"); what remains here is the live instrument's own business — the
- * home view, the per-family style loops (their move to named style laws is
- * a future settled conversation), and the chunk protocol.
+ * strategies (src/core/search/); the sizing laws are the named rules of
+ * core/sizing.ts and the styling loop is the shared style pass
+ * (core/stylePass.ts) — the worker owns only the live instrument's own
+ * business: the per-family definitions below, the home view, and the chunk
+ * protocol.
  *
  * Jobs run to completion: E9's constant-ink law holds the population flat
  * (~tens of thousands of dots at every zoom), so every job is
  * milliseconds-scale and supersession between jobs is all the cancellation
- * the instrument needs. (The old A_PER_BLOCK mid-job yield predated E9.)
+ * the instrument needs.
  */
-import { cubicIrreducible, discriminant } from "../core/invariants.ts";
 import { constantInkScaleQuadratic, viewConeQuadratics } from "../core/search/cone.ts";
 import {
   constantInkScaleMonicCubic,
   viewConeMonicCubics,
 } from "../core/search/coneMonicCubic.ts";
 import type { SearchStrategy } from "../core/search/types.ts";
+import { classic, discLaw, type SizingRule } from "../core/sizing.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots, type RootSlots } from "../core/solve/types.ts";
+import { irreducibleOnly, type RootFilter, solid, upperHalfPlane } from "../core/style.ts";
+import { styleBatch } from "../core/stylePass.ts";
 import type { ChunkMessage, DoneMessage, LiveFamily, RenderRequest } from "./protocol.ts";
 
 const HOME_HEIGHT = 2.6; // h₀: the view at which c(h) = the style's sizeScale
-const INK = 0.05; // the one live color, until styles become named presets
+const INK = solid(0.05, 0.05, 0.05); // the one live color, until coloring rules are settled
 
 interface FamilyDef {
   readonly strategy: SearchStrategy;
-  /** Constant-ink zoom law for this family's live size law. */
+  /** Constant-ink zoom law: effective scale at height h from the dial c₀.
+   *  (c₀ crosses the protocol in the family's traditional disc-form
+   *  constant; sizing() converts to the declared f′ form.) */
   scaleAt(c0: number, h: number): number;
   solve(coeffs: Float64Array, count: number, slots: RootSlots): void;
-  /** Style one solved batch into `out` (anchor-relative positions);
-   *  returns the instance count. */
-  style(
-    coeffs: Float64Array, count: number, slots: RootSlots,
-    cEff: number, radiusCap: number, anchorRe: number, anchorIm: number,
-    out: Float32Array,
-  ): number;
-}
-
-/** Hyperbolic sizing c/√|disc| — the E8-validated quadratic look. */
-function styleQuadratics(
-  coeffs: Float64Array, count: number, slots: RootSlots,
-  cEff: number, radiusCap: number, anchorRe: number, anchorIm: number,
-  out: Float32Array,
-): number {
-  let n = 0;
-  for (let i = 0; i < count; i++) {
-    const disc = discriminant(coeffs, i * 3, 2);
-    if (disc >= 0) continue; // UHP picture: complex pairs only
-    const im = slots.im[i * 2]; // UHP member first
-    const rHyp = Math.min(radiusCap, cEff / Math.sqrt(-disc));
-    const o = n * 6;
-    out[o] = slots.re[i * 2] - anchorRe;
-    out[o + 1] = im - anchorIm;
-    out[o + 2] = rHyp * im;
-    out[o + 3] = INK;
-    out[o + 4] = INK;
-    out[o + 5] = INK;
-    n++;
-  }
-  return n;
-}
-
-const realRoots = new Float64Array(3); // reused by the cubic rational-root test
-
-/** disc¼ sizing (the uniformity locus, monic-cubic-sampling.md §7),
- *  irreducible only. */
-function styleMonicCubics(
-  coeffs: Float64Array, count: number, slots: RootSlots,
-  cEff: number, radiusCap: number, anchorRe: number, anchorIm: number,
-  out: Float32Array,
-): number {
-  let n = 0;
-  for (let i = 0; i < count; i++) {
-    const off = i * 4;
-    const disc = discriminant(coeffs, off, 3);
-    if (disc >= 0) continue; // need a complex pair
-
-    let nReal = 0;
-    let re = 0;
-    let im = -1;
-    for (let k = 0; k < slots.count[i]; k++) {
-      const y = slots.im[i * 3 + k];
-      if (y === 0) realRoots[nReal++] = slots.re[i * 3 + k];
-      else if (y > 0) {
-        re = slots.re[i * 3 + k];
-        im = y;
-      }
-    }
-    if (im <= 0) continue;
-    if (!cubicIrreducible(coeffs, off, realRoots, nReal)) continue;
-
-    const rWorld = Math.min(radiusCap * im, cEff / Math.sqrt(Math.sqrt(-disc)));
-    const o = n * 6;
-    out[o] = re - anchorRe;
-    out[o + 1] = im - anchorIm;
-    out[o + 2] = rWorld;
-    out[o + 3] = INK;
-    out[o + 4] = INK;
-    out[o + 5] = INK;
-    n++;
-  }
-  return n;
+  /** The live sizing rule at effective scale cEff. */
+  sizing(cEff: number, cap: number): SizingRule;
+  readonly filters: readonly RootFilter[];
 }
 
 const FAMILIES: Record<LiveFamily, FamilyDef> = {
@@ -112,13 +47,17 @@ const FAMILIES: Record<LiveFamily, FamilyDef> = {
     strategy: viewConeQuadratics(),
     scaleAt: (c0, h) => constantInkScaleQuadratic(c0, h, HOME_HEIGHT),
     solve: solveQuadraticBatch,
-    style: styleQuadratics,
+    // The E8-validated look: classic (γ, δ) = (1, 1), c·y/|f′(z)| = c/√|disc| hyperbolic.
+    sizing: (c, cap) => classic(c, { cap }),
+    filters: [upperHalfPlane],
   },
   monicCubic: {
     strategy: viewConeMonicCubics(),
     scaleAt: (c0, h) => constantInkScaleMonicCubic(c0, h, HOME_HEIGHT),
     solve: solveCubicBatch,
-    style: styleMonicCubics,
+    // The uniformity locus in its disc¼ dress: c/|disc|^¼ (= uniform(c·√2)).
+    sizing: (c, cap) => discLaw({ alpha: 0.25, beta: 0, c, degree: 3, cap }),
+    filters: [upperHalfPlane, irreducibleOnly],
   },
 };
 
@@ -151,6 +90,8 @@ function renderJob(job: RenderRequest): void {
   const anchorIm = view.centerIm;
 
   const cEff = def.scaleAt(job.style.sizeScale, view.height);
+  const sizing = def.sizing(cEff, job.style.radiusCap);
+  const style = { sizing, color: INK };
   const worldW = view.height * (job.viewportW / job.viewportH);
   const population = def.strategy.populationFor({
     window: {
@@ -160,7 +101,7 @@ function renderJob(job: RenderRequest): void {
       worldH: view.height,
     },
     worldPerPixel: view.height / job.viewportH,
-    sizeScale: cEff,
+    sizing,
   });
 
   const degree = def.strategy.family.degree;
@@ -169,9 +110,17 @@ function renderJob(job: RenderRequest): void {
   const polynomials = population.enumerate((coeffs, count) => {
     def.solve(coeffs, count, slots);
     const instances = new Float32Array(count * 6);
-    const n = def.style(
-      coeffs, count, slots, cEff, job.style.radiusCap, anchorRe, anchorIm, instances,
-    );
+    let n = 0;
+    styleBatch(coeffs, count, degree, slots, def.filters, style, (re, im, rWorld, r, g, b) => {
+      const o = n * 6;
+      instances[o] = re - anchorRe;
+      instances[o + 1] = im - anchorIm;
+      instances[o + 2] = rWorld;
+      instances[o + 3] = r;
+      instances[o + 4] = g;
+      instances[o + 5] = b;
+      n++;
+    });
     if (n > 0) {
       const msg: ChunkMessage = {
         type: "chunk",

@@ -10,6 +10,7 @@
  */
 
 import { viewConeQuadratics } from "../../src/core/search/cone.ts";
+import { classic, uniform } from "../../src/core/sizing.ts";
 import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
@@ -18,22 +19,25 @@ const C_SZ = Number(process.argv[2] ?? 0.035);
 const W_PX = Number(process.argv[3] ?? 3600);
 const H_PX = Number(process.argv[4] ?? W_PX);
 const SIZING = (process.argv[5] ?? "std") as "std" | "uniform";
-const RADIUS_CAP = 0.5;
 
 const style: Style = {
-  sizeUnits: "hyperbolic",
-  sizeScale: C_SZ,
-  size: SIZING === "std"
-    ? (row) => Math.min(RADIUS_CAP, C_SZ / Math.sqrt(Math.abs(row.disc)))
-    : (row) => Math.min(RADIUS_CAP, C_SZ / (Math.sqrt(row.im) * Math.sqrt(Math.abs(row.disc)))),
+  sizing: SIZING === "std" ? classic(C_SZ) : uniform(C_SZ),
   color: solid(0.05, 0.05, 0.05),
 };
+
+// The depth derivation holds for the classic law; the uniform comparison
+// draws its law over the classic-law population — explicit via deriveFrom
+// (the E-known near-axis under-march of the old implicit pairing, now
+// labeled; a uniform-law depth derivation is queued design work).
+const search = SIZING === "std"
+  ? viewConeQuadratics()
+  : viewConeQuadratics({ deriveFrom: classic(C_SZ) });
 
 console.log(`quadratics-cone: ${W_PX}x${H_PX}px, c = ${C_SZ}, ${SIZING}`);
 const t0 = performance.now();
 
 const result = renderPrint({
-  search: viewConeQuadratics(),
+  search,
   filters: [upperHalfPlane],
   style,
   view: { center: [0, 1.1], height: 2.6 },

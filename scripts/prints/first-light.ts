@@ -1,16 +1,19 @@
 /**
  * First light: integer quadratics in a box — the classic test case.
  * Roots of ax² + bx + c, |a|,|b|,|c| ≤ 40, upper half plane, sized by the
- * hyperbolic law scale/|disc|, opaque compositing (smaller disks on top).
+ * January hyperbolic-radius law c/|disc| — the (γ, δ) = (2, 1) point,
+ * steeper in depth than classic(c) — opaque compositing (smaller disks on
+ * top).
  */
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
-import { hyperbolicSize, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { discLaw } from "../../src/core/sizing.ts";
+import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
 const style: Style = {
-  ...hyperbolicSize(0.06),
+  sizing: discLaw({ alpha: 1, beta: 1, c: 0.06, degree: 2 }),
   color: solid(0.05, 0.05, 0.05),
 };
 

@@ -5,42 +5,31 @@
  */
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
+import { classic, discLaw } from "../../src/core/sizing.ts";
 import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
+// The world-unit laws carry cap: Infinity — their historical 0.5 WORLD cap
+// was provably inert (r ≤ s/√3 ≪ 0.5), while the hyperbolic default 0.5·y
+// would newly clamp them near the axis and change the comparison.
+const INK = solid(0.05, 0.05, 0.05);
 const laws: Array<{ name: string; style: Style }> = [
   {
-    name: "hyp-disc", // r_hyp = s/|disc|  (first light)
-    style: {
-      sizeUnits: "hyperbolic",
-      size: (r) => Math.min(0.5, 0.06 / Math.abs(r.disc)),
-      color: solid(0.05, 0.05, 0.05),
-    },
+    name: "hyp-disc", // r_hyp = s/|disc| (first light) — (γ, δ) = (2, 1)
+    style: { sizing: discLaw({ alpha: 1, beta: 1, c: 0.06, degree: 2 }), color: INK },
   },
   {
-    name: "hyp-sqrtdisc", // r_hyp = s/√|disc|  (= s/|f'(root)| up to |a|)
-    style: {
-      sizeUnits: "hyperbolic",
-      size: (r) => Math.min(0.5, 0.035 / Math.sqrt(Math.abs(r.disc))),
-      color: solid(0.05, 0.05, 0.05),
-    },
+    name: "hyp-sqrtdisc", // r_hyp = s/√|disc| — classic, (γ, δ) = (1, 1)
+    style: { sizing: classic(0.035), color: INK },
   },
   {
-    name: "world-disc", // r = s/|disc|
-    style: {
-      sizeUnits: "world",
-      size: (r) => Math.min(0.5, 0.06 / Math.abs(r.disc)),
-      color: solid(0.05, 0.05, 0.05),
-    },
+    name: "world-disc", // r = s/|disc| — (γ, δ) = (2, 0)
+    style: { sizing: discLaw({ alpha: 1, beta: 0, c: 0.06, degree: 2, cap: Infinity }), color: INK },
   },
   {
-    name: "world-sqrtdisc", // r = s/√|disc|
-    style: {
-      sizeUnits: "world",
-      size: (r) => Math.min(0.5, 0.035 / Math.sqrt(Math.abs(r.disc))),
-      color: solid(0.05, 0.05, 0.05),
-    },
+    name: "world-sqrtdisc", // r = s/√|disc| — (γ, δ) = (1, 0)
+    style: { sizing: discLaw({ alpha: 0.5, beta: 0, c: 0.035, degree: 2, cap: Infinity }), color: INK },
   },
 ];
 

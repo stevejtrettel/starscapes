@@ -2,17 +2,19 @@
  * The offline pipeline: family ∩ search → solve → invariants → filters →
  * style → deposit → develop. A print script calls renderPrint with a
  * specification that reads like the picture's description; this file is the
- * interpreter. (Node-free: the caller writes the developed image out.)
+ * interpreter. The per-root styling loop is the shared style pass
+ * (core/stylePass.ts — one transcription, live and print). (Node-free: the
+ * caller writes the developed image out.)
  */
 import type { Family } from "../core/family/types.ts";
-import { cubicIrreducible, discriminant, height, quadraticIrreducible } from "../core/invariants.ts";
 import { type BoxSearch, DEFAULT_BATCH_CAPACITY, enumerateBox } from "../core/search/forward.ts";
 import { harvestQuadratics, type InverseSearch } from "../core/search/inverse.ts";
 import type { Population, SearchStrategy } from "../core/search/types.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots } from "../core/solve/types.ts";
-import type { MutableRootRow, RootFilter, Style } from "../core/style.ts";
+import type { RootFilter, Style } from "../core/style.ts";
+import { styleBatch } from "../core/stylePass.ts";
 import { createRaster, depositDisk, develop, type Raster } from "../render/raster.ts";
 
 export interface View {
@@ -55,7 +57,6 @@ export function renderPrint(spec: PrintSpec): PrintResult {
   if (!family) throw new Error("box/inverse searches need spec.family");
   const { style } = spec;
   const degree = family.degree;
-  const stride = degree + 1;
   const filters = spec.filters ?? [];
 
   const width = spec.image.width;
@@ -71,20 +72,6 @@ export function renderPrint(spec: PrintSpec): PrintResult {
   const pxPerWorld = (imgHeight * ss) / worldH;
 
   const slots = allocRootSlots(DEFAULT_BATCH_CAPACITY, degree);
-  const colorOut = new Float64Array(3);
-
-  // The reused row cursor (style functions read, never retain — see style.ts).
-  const row: MutableRootRow = {
-    degree,
-    re: 0,
-    im: 0,
-    mult: 0,
-    disc: 0,
-    height: 0,
-    irreducible: true,
-  };
-  const realRoots = new Float64Array(degree);
-
   let roots = 0;
   let drawn = 0;
 
@@ -93,56 +80,22 @@ export function renderPrint(spec: PrintSpec): PrintResult {
     else if (degree === 3) solveCubicBatch(coeffs, count, slots);
     else throw new Error(`no solver for degree ${degree} yet`);
 
-    for (let i = 0; i < count; i++) {
-      const off = i * stride;
-      row.disc = discriminant(coeffs, off, degree);
-      row.height = height(coeffs, off, stride);
-      const base = i * degree;
-
-      if (degree === 2) {
-        row.irreducible = quadraticIrreducible(row.disc);
-      } else {
-        // Gather the polynomial's real roots for the rational-root test.
-        let nReal = 0;
-        for (let k = 0; k < slots.count[i]; k++) {
-          if (slots.im[base + k] === 0) realRoots[nReal++] = slots.re[base + k];
-        }
-        row.irreducible = cubicIrreducible(coeffs, off, realRoots, nReal);
-      }
-
-      slot: for (let k = 0; k < slots.count[i]; k++) {
-        roots++;
-        row.re = slots.re[base + k];
-        row.im = slots.im[base + k];
-        row.mult = slots.mult[base + k];
-        for (const keep of filters) if (!keep(row)) continue slot;
-
-        // Declared units → Euclidean world radius.
-        let rWorld = style.size(row);
-        if (style.sizeUnits === "hyperbolic") rWorld *= Math.abs(row.im);
-        const rPx = style.sizeUnits === "screen" ? rWorld * ss : rWorld * pxPerWorld;
-        if (rPx <= 0) continue;
-
-        style.color(row, colorOut);
-        const cx = (row.re - left) * pxPerWorld;
-        const cy = (top - row.im) * pxPerWorld;
-        depositDisk(raster, cx, cy, rPx, colorOut[0], colorOut[1], colorOut[2]);
-        drawn++;
-      }
-    }
+    roots += styleBatch(coeffs, count, degree, slots, filters, style, (re, im, rWorld, r, g, b) => {
+      depositDisk(raster, (re - left) * pxPerWorld, (top - im) * pxPerWorld, rWorld * pxPerWorld, r, g, b);
+      drawn++;
+    });
   };
 
   let polynomials: number;
   let population: Population | undefined;
   if ("mode" in spec.search) {
-    // Strategy: bind to this print's view; every cutoff is derived.
-    if (style.sizeScale === undefined) {
-      throw new Error("a search strategy derives its depth from the style's declared sizeScale");
-    }
+    // Strategy: bind to this print's view — every cutoff derived from the
+    // sizing structure (Option A); structure-needing strategies throw here
+    // when the rule declares none.
     population = spec.search.populationFor({
       window: { left, top, worldW, worldH },
       worldPerPixel: worldH / imgHeight,
-      sizeScale: style.sizeScale,
+      sizing: style.sizing,
     });
     polynomials = population.enumerate(onBatch);
   } else if (spec.search.kind === "box") {
