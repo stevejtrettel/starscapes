@@ -18,8 +18,10 @@
  * hence flat). A deliberate choice of what the live instrument shows,
  * not a magnification of the wide picture (which must saturate).
  */
-import { discriminant } from "../core/invariants.ts";
+import { cubicIrreducible, discriminant } from "../core/invariants.ts";
 import { coneQuadratics } from "../core/search/cone.ts";
+import { coneMonicCubics } from "../core/search/coneMonicCubic.ts";
+import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots } from "../core/solve/types.ts";
 import type { ChunkMessage, DoneMessage, RenderRequest } from "./protocol.ts";
@@ -51,8 +53,109 @@ const yieldToMessages = (): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, 0));
 
 async function renderJob(job: RenderRequest): Promise<void> {
+  if (job.family === "monicCubic") return renderMonicCubicJob(job);
+  return renderQuadraticJob(job);
+}
+
+/**
+ * Monic cubics, live: view-cone population (docs/monic-cubic-sampling.md),
+ * disc¼ sizing (the uniformity locus, doc §7), irreducible only. The whole
+ * view computes in milliseconds at explorer scale (E13), so no streaming
+ * blocks are needed — one job, chunked only by batch size.
+ *
+ * Zoom-adaptive scale: under disc¼, ink ∝ c^{5/2}·(H/h)^{1/2} (§7.3 with
+ * ρ ∝ √(c/p)), so constant perceived weight needs c(h) = c₀·(h/h₀)^{1/5} —
+ * the fifth-root analogue of the quadratics' cube root.
+ */
+const DUST_R_CUBIC = 4; // print-texture depth multiplier on ρ (labeled)
+
+async function renderMonicCubicJob(job: RenderRequest): Promise<void> {
   const t0 = performance.now();
   const { view, style } = job;
+  // Instance positions are RELATIVE to the view center (protocol.ts): an
+  // absolute float32 coordinate quantizes at ~|z|·6e-8, visible jitter at
+  // deep zoom; the offset survives the cast because it is window-sized.
+  const anchorRe = view.centerRe;
+  const anchorIm = view.centerIm;
+
+  const cEff = style.sizeScale * (view.height / HOME_HEIGHT) ** (1 / 5);
+  const p = view.height / job.viewportH;
+  const rho = DUST_R_CUBIC * Math.sqrt((DUST_FACTOR * cEff) / (2 * p));
+
+  const pad = cEff; // generous vs the largest escaping dot (labeled heuristic)
+  const worldW = view.height * (job.viewportW / job.viewportH);
+  const window = {
+    left: view.centerRe - worldW / 2 - pad,
+    top: view.centerIm + view.height / 2 + pad,
+    worldW: worldW + 2 * pad,
+    worldH: view.height + 2 * pad,
+  };
+
+  const slots = allocRootSlots(4096, 3);
+  const realRoots = new Float64Array(3);
+  let polynomials = 0;
+
+  polynomials = coneMonicCubics(window, rho, (coeffs, count) => {
+    solveCubicBatch(coeffs, count, slots);
+    const instances = new Float32Array(count * 6);
+    let n = 0;
+    for (let i = 0; i < count; i++) {
+      const off = i * 4;
+      const disc = discriminant(coeffs, off, 3);
+      if (disc >= 0) continue; // need a complex pair
+
+      let nReal = 0;
+      let re = 0;
+      let im = -1;
+      for (let k = 0; k < slots.count[i]; k++) {
+        const y = slots.im[i * 3 + k];
+        if (y === 0) realRoots[nReal++] = slots.re[i * 3 + k];
+        else if (y > 0) {
+          re = slots.re[i * 3 + k];
+          im = y;
+        }
+      }
+      if (im <= 0) continue;
+      if (!cubicIrreducible(coeffs, off, realRoots, nReal)) continue;
+
+      // disc¼ law (uniformity locus): r_world = c/|disc|^{1/4}, capped.
+      const rWorld = Math.min(style.radiusCap * im, cEff / Math.sqrt(Math.sqrt(-disc)));
+      const o = n * 6;
+      instances[o] = re - anchorRe;
+      instances[o + 1] = im - anchorIm;
+      instances[o + 2] = rWorld;
+      instances[o + 3] = 0.05;
+      instances[o + 4] = 0.05;
+      instances[o + 5] = 0.05;
+      n++;
+    }
+    if (n > 0) {
+      const msg: ChunkMessage = {
+        type: "chunk",
+        generation: job.generation,
+        instances: instances.subarray(0, n * 6),
+        count: n,
+      };
+      self.postMessage(msg, { transfer: [instances.buffer] });
+    }
+  });
+
+  const done: DoneMessage = {
+    type: "done",
+    generation: job.generation,
+    polynomials,
+    aMax: Math.round(rho), // depth readout: the real-root reach ρ
+    ms: performance.now() - t0,
+  };
+  self.postMessage(done);
+}
+
+async function renderQuadraticJob(job: RenderRequest): Promise<void> {
+  const t0 = performance.now();
+  const { view, style } = job;
+  // Anchor-relative positions — see renderMonicCubicJob and protocol.ts.
+  const anchorRe = view.centerRe;
+  const anchorIm = view.centerIm;
 
   // Zoom-adaptive size scale (see file comment).
   const cEff = style.sizeScale * Math.cbrt(view.height / HOME_HEIGHT);
@@ -89,8 +192,8 @@ async function renderJob(job: RenderRequest): Promise<void> {
         const im = slots.im[i * 2]; // UHP member first
         const rHyp = Math.min(style.radiusCap, cEff / Math.sqrt(-disc));
         const o = n * 6;
-        instances[o] = slots.re[i * 2];
-        instances[o + 1] = im;
+        instances[o] = slots.re[i * 2] - anchorRe;
+        instances[o + 1] = im - anchorIm;
         instances[o + 2] = rHyp * im;
         instances[o + 3] = 0.05;
         instances[o + 4] = 0.05;

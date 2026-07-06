@@ -10,6 +10,7 @@
  *              (deflate by the real root, then the quadratic formula).
  * Real roots get a Newton polish against the original cubic.
  */
+import { discriminant } from "../invariants.ts";
 import { evalDerivReal, evalReal } from "../polynomial.ts";
 import { TOL } from "./tolerances.ts";
 import type { RootSlots } from "./types.ts";
@@ -41,9 +42,7 @@ export function solveCubicBatch(
     const a = coeffs[o + 3];
     const s = 3 * i; // slot base (degree 3)
 
-    const disc =
-      18 * a * b * c * d - 4 * b * b * b * d + b * b * c * c
-      - 4 * a * c * c * c - 27 * a * a * d * d;
+    const disc = discriminant(coeffs, o, 3); // one transcription of the formula (invariants.ts)
 
     // Depressed cubic t³ + pt + q under x = t − b/(3a).
     const shift = -b / (3 * a);
@@ -59,7 +58,7 @@ export function solveCubicBatch(
       let r1 = polish(coeffs, o, shift + m * Math.cos(theta - TWO_PI_3));
       let r2 = polish(coeffs, o, shift + m * Math.cos(theta - 2 * TWO_PI_3));
       // Ascending order.
-      let t;
+      let t: number;
       if (r0 > r1) { t = r0; r0 = r1; r1 = t; }
       if (r1 > r2) { t = r1; r1 = r2; r2 = t; }
       if (r0 > r1) { t = r0; r0 = r1; r1 = t; }

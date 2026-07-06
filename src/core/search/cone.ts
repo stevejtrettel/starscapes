@@ -10,12 +10,16 @@
  * slack — this is what removes the zoom depth wall (experiment E4/E5).
  *
  * Coverage is complete by construction (every member's (b, c) lies in the
- * scanned ranges); enumeration may over-shoot by rounding slack at the
- * window edge, which exact post-solve membership (or GPU clipping) removes.
- * The window should be pre-fattened by the style's maximum dot radius so
- * dots centered just outside the view still get drawn.
+ * scanned ranges); all bounds are widened by EPS before ceil/floor so float
+ * rounding can never drop a member on an interval edge (conventions.md).
+ * Enumeration may over-shoot by that slack, which exact post-solve
+ * membership (or GPU clipping) removes. The window should be pre-fattened
+ * by the style's maximum dot radius so dots centered just outside the view
+ * still get drawn.
  */
 import type { Window } from "./inverse.ts";
+
+const EPS = 1e-9;
 
 /**
  * Enumerate Φ_cone members for a ∈ [aFrom, aTo] (inclusive) — a range so
@@ -43,13 +47,13 @@ export function coneQuadratics(
   let total = 0;
 
   for (let a = Math.max(1, aFrom); a <= aTo; a++) {
-    const bLo = Math.ceil(-2 * a * sHi);
-    const bHi = Math.floor(-2 * a * sLo);
+    const bLo = Math.ceil(-2 * a * sHi - EPS);
+    const bHi = Math.floor(-2 * a * sLo + EPS);
     for (let b = bLo; b <= bHi; b++) {
       const s = -b / (2 * a);
       const s2 = s * s;
-      const cLo = Math.ceil(a * (s2 + yLo2));
-      const cHi = Math.floor(a * (s2 + yHi2));
+      const cLo = Math.ceil(a * (s2 + yLo2) - EPS);
+      const cHi = Math.floor(a * (s2 + yHi2) + EPS);
       for (let c = cLo; c <= cHi; c++) {
         const o = inBatch * 3;
         coeffs[o] = c;

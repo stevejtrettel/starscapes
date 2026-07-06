@@ -5,13 +5,13 @@
  * interpreter. (Node-free: the caller writes the developed image out.)
  */
 import type { Family } from "../core/family/types.ts";
-import { discriminant, height } from "../core/invariants.ts";
+import { cubicIrreducible, discriminant, height, quadraticIrreducible } from "../core/invariants.ts";
 import { type BoxSearch, DEFAULT_BATCH_CAPACITY, enumerateBox } from "../core/search/forward.ts";
 import { harvestQuadratics, type InverseSearch } from "../core/search/inverse.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots } from "../core/solve/types.ts";
-import type { RootFilter, RootRow, Style } from "../core/style.ts";
+import type { MutableRootRow, RootFilter, Style } from "../core/style.ts";
 import { createRaster, depositDisk, develop, type Raster } from "../render/raster.ts";
 
 export interface View {
@@ -64,16 +64,16 @@ export function renderPrint(spec: PrintSpec): PrintResult {
   const colorOut = new Float64Array(3);
 
   // The reused row cursor (style functions read, never retain — see style.ts).
-  const row = {
+  const row: MutableRootRow = {
     degree,
     re: 0,
     im: 0,
     mult: 0,
     disc: 0,
     height: 0,
-  } satisfies RootRow as {
-    degree: number; re: number; im: number; mult: number; disc: number; height: number;
+    irreducible: true,
   };
+  const realRoots = new Float64Array(degree);
 
   let roots = 0;
   let drawn = 0;
@@ -88,6 +88,17 @@ export function renderPrint(spec: PrintSpec): PrintResult {
       row.disc = discriminant(coeffs, off, degree);
       row.height = height(coeffs, off, stride);
       const base = i * degree;
+
+      if (degree === 2) {
+        row.irreducible = quadraticIrreducible(row.disc);
+      } else {
+        // Gather the polynomial's real roots for the rational-root test.
+        let nReal = 0;
+        for (let k = 0; k < slots.count[i]; k++) {
+          if (slots.im[base + k] === 0) realRoots[nReal++] = slots.re[base + k];
+        }
+        row.irreducible = cubicIrreducible(coeffs, off, realRoots, nReal);
+      }
 
       slot: for (let k = 0; k < slots.count[i]; k++) {
         roots++;

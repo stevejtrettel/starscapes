@@ -8,7 +8,7 @@
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box, enumerateBox } from "../../src/core/search/forward.ts";
 import { harvestQuadratics, inverse } from "../../src/core/search/inverse.ts";
-import { solid, type Style, upperHalfPlane } from "../../src/core/style.ts";
+import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
@@ -65,7 +65,7 @@ for (const [key, absDisc] of gt) {
   else missedDiscs.push(absDisc);
 }
 missedDiscs.sort((p, q) => p - q);
-const pct = (n: number, d: number) => ((100 * n) / d).toFixed(2) + "%";
+const pct = (n: number, d: number) => `${((100 * n) / d).toFixed(2)}%`;
 
 console.log(`window: center ${view.center}, height ${view.height} — ε=${EPSILON}, aMax=${A_MAX}, seeds ${SIZE}²`);
 console.log(`ground truth (box ${BOUND}, root in window): ${gt.size}`);

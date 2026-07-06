@@ -35,6 +35,11 @@ amend the document when we amend the rules.*
   in their doc comment. (Debt, scheduled with Aberth: assert the range and
   route beyond it to bigint escalation.)
 - **No negative zero leaves a solver** (`+ 0` normalization).
+- **Enumeration bounds never lose a member**: interval endpoints computed
+  in floating point are widened by EPS before ceil/floor. Over-coverage is
+  harmless (exact membership filters downstream); under-coverage is a
+  completeness bug. (Adopted in coneMonicCubic; applied to coneQuadratics
+  2026-07-05.)
 - **One named tolerance table per layer** (`TOL`); no magic numbers in
   kernels.
 

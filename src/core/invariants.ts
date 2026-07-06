@@ -34,3 +34,46 @@ export function height(coeffs: Float64Array, off: number, len: number): number {
   }
   return h;
 }
+
+/**
+ * Quadratic irreducibility over ℚ: reducible ⟺ the discriminant is a
+ * perfect square ≥ 0 (exact: disc is an exact integer and √ of a perfect
+ * square < 2⁵² is exact in float64).
+ */
+export function quadraticIrreducible(disc: number): boolean {
+  if (disc < 0) return true;
+  const s = Math.round(Math.sqrt(disc));
+  return s * s !== disc;
+}
+
+/**
+ * Cubic irreducibility over ℚ. A cubic is reducible iff it has a rational
+ * root (any factorization contains a linear factor), and by the rational
+ * root theorem that root is p/q with q | a. We already solve every
+ * polynomial, so each real root r nominates its own candidates: for each
+ * divisor q of a, p = round(q·r), verified by EXACT homogeneous evaluation
+ * a·p³ + b·p²q + c·pq² + d·q³ (an integer; |value| < 0.5 ⟺ zero).
+ * This is the shaders.tex in-march check, CPU-side. Exact-safe while
+ * max|coef|·(q·|r|+1)³ < 2⁵³ — comfortable for every box we enumerate;
+ * see conventions.md on exactness ranges.
+ */
+export function cubicIrreducible(
+  coeffs: Float64Array, off: number,
+  realRoots: ArrayLike<number>, realRootCount: number,
+): boolean {
+  const d = coeffs[off];
+  const c = coeffs[off + 1];
+  const b = coeffs[off + 2];
+  const a = coeffs[off + 3];
+  const absA = Math.abs(a);
+  for (let k = 0; k < realRootCount; k++) {
+    const r = realRoots[k];
+    for (let q = 1; q <= absA; q++) {
+      if (absA % q !== 0) continue;
+      const p = Math.round(q * r);
+      const val = a * p * p * p + b * p * p * q + c * p * q * q + d * q * q * q;
+      if (Math.abs(val) < 0.5) return false; // rational root ⇒ reducible
+    }
+  }
+  return true;
+}

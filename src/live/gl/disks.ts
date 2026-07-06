@@ -1,9 +1,12 @@
 /**
- * Instanced disk renderer, raw WebGL2. Instances live in WORLD coordinates
- * (position, radius, color) — the camera is applied in the vertex shader, so
- * already-uploaded roots re-project for free while a new view computes, and
- * opaque size-ordered compositing is the hardware depth test with
- * depth = radius (design.md: smallest disk wins per pixel).
+ * Instanced disk renderer, raw WebGL2. Instances live in world coordinates
+ * RELATIVE to a per-generation anchor (the view center at request time) —
+ * absolute float32 coordinates jitter at deep zoom; window-relative offsets
+ * survive the cast, and camera − anchor is computed here in float64. The
+ * camera is applied in the vertex shader, so already-uploaded roots
+ * re-project for free while a new view computes, and opaque size-ordered
+ * compositing is the hardware depth test with depth = radius (design.md:
+ * smallest disk wins per pixel).
  *
  * Instance layout, interleaved Float32 ×6: [x, y, radiusWorld, r, g, b].
  */
@@ -13,11 +16,11 @@ export const FLOATS_PER_INSTANCE = 6;
 
 const VERT = `#version 300 es
 layout(location=0) in vec2 corner;        // unit quad, per vertex
-layout(location=1) in vec2 iPos;          // per instance, world
+layout(location=1) in vec2 iPos;          // per instance, world − anchor
 layout(location=2) in float iRadius;      // per instance, world units
 layout(location=3) in vec3 iColor;
 
-uniform vec2 uCenter;
+uniform vec2 uCenter;     // camera center − anchor (float64 subtraction, CPU-side)
 uniform vec2 uScale;      // clip units per world unit (x carries aspect)
 uniform float uMinRadius; // half a pixel in world units — tiny dots stay visible
 uniform float uRadiusCap; // style cap: normalizes radius into depth [0,1]
@@ -58,12 +61,14 @@ function compile(gl: WebGL2RenderingContext, type: number, src: string): WebGLSh
 }
 
 export interface DiskRenderer {
-  /** Drop all instances (a new view generation begins). */
-  begin(): void;
+  /** Drop all instances; positions of the new generation are relative to this anchor. */
+  begin(anchorRe: number, anchorIm: number): void;
   /** Append styled instances (FLOATS_PER_INSTANCE floats each). */
   append(data: Float32Array, count: number): void;
   draw(camera: Camera, viewportW: number, viewportH: number): void;
   readonly count: number;
+  /** Instances discarded because the buffer filled — nonzero means the view is incomplete. */
+  readonly dropped: number;
 }
 
 export function createDiskRenderer(
@@ -119,16 +124,26 @@ export function createDiskRenderer(
   gl.depthFunc(gl.LESS);
 
   let count = 0;
+  let dropped = 0;
+  let anchorRe = 0;
+  let anchorIm = 0;
 
   return {
     get count() {
       return count;
     },
-    begin() {
+    get dropped() {
+      return dropped;
+    },
+    begin(aRe, aIm) {
       count = 0;
+      dropped = 0;
+      anchorRe = aRe;
+      anchorIm = aIm;
     },
     append(data, n) {
       const room = Math.min(n, capacity - count);
+      dropped += n - room;
       if (room <= 0) return;
       gl.bindBuffer(gl.ARRAY_BUFFER, instances);
       gl.bufferSubData(
@@ -147,7 +162,7 @@ export function createDiskRenderer(
       const aspect = viewportW / viewportH;
       const worldPerPx = camera.height / viewportH;
       gl.useProgram(program);
-      gl.uniform2f(uCenter, camera.centerRe, camera.centerIm);
+      gl.uniform2f(uCenter, camera.centerRe - anchorRe, camera.centerIm - anchorIm);
       gl.uniform2f(uScale, 2 / (camera.height * aspect), 2 / camera.height);
       gl.uniform1f(uMinRadius, 0.5 * worldPerPx);
       gl.uniform1f(uRadiusCap, radiusCap);

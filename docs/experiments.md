@@ -439,3 +439,31 @@ scripts and its tests). Three attempts, one consistent lesson, now a house
 rule: local density equalization keeps failing the eye — if halo treatment
 is ever wanted, start from the MATHEMATICS (Farey-indexed near-geodesic
 sub-families), not from spatial accounting.
+
+---
+
+## E13 — The monic cubic cone: no saturation, no scale law
+**2026-07-05 · `scripts/experiments/monic-cubic-zoom.ts` · docs/monic-cubic-sampling.md**
+
+**Question.** The derivations claim: population ∝ ρ³ (4.2); total ink
+CONVERGES (∫du/q = π/y beats the measure, 4.3–4.4) and its fraction is
+zoom-independent at FIXED size scale — monic cubics need no cube-root law.
+Do measurements agree?
+
+**Setup.** Zoom ladder into 0.318 + 0.842i, heights 2.4/2ᵏ, k = 0…8;
+fixed c_sz = 0.03; march cutoff ρ = √(3·c_sz/2p) (visibility × dust-in-ρ);
+metrics: population, ink fraction (per-dot min(πr², screen)), time.
+Population-vs-ρ at fixed window as the ∝ ρ³ check.
+
+**Prediction.** Ink fraction roughly FLAT across all k at fixed c_sz
+(within ~2×, dust-clamp drift allowed) — the (4.4) cancellation; population
+∝ ρ³ within ~20%; times live-viable throughout.
+
+**Result. CONFIRMED.** Ink fraction flat (0.2–0.7%, one 2.0% at k=8) across
+2.4 → 0.009 window heights at fixed c_sz — the (4.4) cancellation is real;
+no adaptive scale law for monic cubics. All times ≤ 3 ms. Cubic growth in
+ρ verified in the unit tests (cone ≡ brute force over 132k candidates,
+first run). Also learned: the visibility-depth population is SPARSE
+(~800 dots at the home frame) — monic cubic print texture comes from extra
+dust depth, cheap since population ∝ ρ³ (a ×4 dust multiplier on ρ buys
+×64 dots).

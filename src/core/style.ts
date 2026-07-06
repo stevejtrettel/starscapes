@@ -12,7 +12,12 @@ export interface RootRow {
   readonly mult: number;
   readonly disc: number;
   readonly height: number;
+  /** Irreducible over ℚ (exact — see invariants.ts). */
+  readonly irreducible: boolean;
 }
+
+/** The pipeline's reused cursor — the one writer of a RootRow. */
+export type MutableRootRow = { -readonly [K in keyof RootRow]: RootRow[K] };
 
 export type SizeUnits = "world" | "screen" | "hyperbolic";
 
@@ -28,6 +33,10 @@ export type RootFilter = (row: RootRow) => boolean;
 
 /** Keep one representative per conjugate pair (and drop real roots). */
 export const upperHalfPlane: RootFilter = (row) => row.im > 0;
+
+/** Exclude reducible polynomials — e.g. the quadratic starscape embedded in
+ *  the cubic one via (linear)·(quadratic) factorizations. */
+export const irreducibleOnly: RootFilter = (row) => row.irreducible;
 
 /**
  * The canonical starscape sizing: hyperbolic radius scale/|disc|, capped.

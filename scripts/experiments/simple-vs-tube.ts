@@ -4,10 +4,11 @@
  * ingredient of v1 filled the regions near thick geodesics. See
  * docs/experiments.md.
  */
+
+import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { discriminant } from "../../src/core/invariants.ts";
 import { coneQuadratics } from "../../src/core/search/cone.ts";
 import { box, enumerateBox } from "../../src/core/search/forward.ts";
-import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { harvestQuadratics, inverse } from "../../src/core/search/inverse.ts";
 import { solveQuadraticBatch } from "../../src/core/solve/quadratic.ts";
 import { allocRootSlots } from "../../src/core/solve/types.ts";

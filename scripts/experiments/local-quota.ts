@@ -7,7 +7,7 @@ import { discriminant } from "../../src/core/invariants.ts";
 import { coneQuadratics } from "../../src/core/search/cone.ts";
 import { solveQuadraticBatch } from "../../src/core/solve/quadratic.ts";
 import { allocRootSlots } from "../../src/core/solve/types.ts";
-import { ownsRoot, tileGrid } from "../../src/live/tiling.ts";
+import { ownsRoot, tileGrid } from "./tiling.ts";
 
 const VIEWPORT = 600;
 const CELL_PX = 32;

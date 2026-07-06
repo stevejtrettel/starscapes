@@ -2,6 +2,8 @@
  * Screen-cell geometry for local density quotas (pure, DOM-free).
  * (Resurrected from the tiled-ink-budget experiment, E7 — the geometry was
  * correct; only the accounting it served was wrong. See docs/experiments.md.)
+ * RETIRED FROM THE ENGINE with the quota experiments (E10–E12): lives here
+ * because only these experiment scripts (and its tests) consume it.
  *
  * The viewport plus a pad ring is covered by uniform world-space cells of
  * `tilePx`-pixel screens. Cells are uniform — the grid overhangs the

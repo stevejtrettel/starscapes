@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { ownsRoot, tileGrid } from "../scripts/experiments/tiling.ts";
 import { coneQuadratics } from "../src/core/search/cone.ts";
-import { ownsRoot, tileGrid } from "../src/live/tiling.ts";
 
 /** UHP root of ax²+bx+c when disc < 0, else null. */
 function uhpRoot(a: number, b: number, c: number): { re: number; im: number } | null {

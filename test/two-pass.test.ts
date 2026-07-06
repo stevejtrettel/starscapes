@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { ownsRoot, tileGrid } from "../scripts/experiments/tiling.ts";
 import { coneQuadratics } from "../src/core/search/cone.ts";
-import { ownsRoot, tileGrid } from "../src/live/tiling.ts";
 
 /**
  * Two-pass equivalence (worker's harvest structure, house standard):

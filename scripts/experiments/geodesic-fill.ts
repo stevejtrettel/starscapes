@@ -11,7 +11,7 @@ import { solveQuadraticBatch } from "../../src/core/solve/quadratic.ts";
 import { allocRootSlots } from "../../src/core/solve/types.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { createRaster, depositDisk, develop } from "../../src/render/raster.ts";
-import { ownsRoot, tileGrid } from "../../src/live/tiling.ts";
+import { ownsRoot, tileGrid } from "./tiling.ts";
 
 const VIEW = { centerRe: 0.6, centerIm: 0.8, height: 0.15 };
 const SIZE = 3600;

@@ -6,13 +6,20 @@
   "description": "Algebraic starscapes: roots of polynomial families in the complex plane",
   "scripts": {
     "dev": "vite",
-    "test": "vitest run",
+    "quadratics": "vite --open /demos/quadratics/",
+    "monic-cubics": "vite --open /demos/monic-cubics/",
+    "build": "vite build --base=./",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "lint": "biome check .",
+    "test": "tsc && vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
     "@types/node": "^24.0.0",
     "@types/pngjs": "^6.0.5",
     "typescript": "^5.8.0",

@@ -6,7 +6,7 @@
  */
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { inverse } from "../../src/core/search/inverse.ts";
-import { solid, type Style, upperHalfPlane } from "../../src/core/style.ts";
+import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 

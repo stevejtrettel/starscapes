@@ -8,6 +8,7 @@
  *   disc = 0 — one rational root −b/2a of multiplicity 2, exactly;
  *   disc < 0 — a conjugate pair, upper-half-plane member first.
  */
+import { discriminant } from "../invariants.ts";
 import type { RootSlots } from "./types.ts";
 
 /** Coefficients ascending: [c, b, a] per polynomial, stride 3. */
@@ -21,7 +22,7 @@ export function solveQuadraticBatch(
     const a = coeffs[o + 2];
     const s = 2 * i; // slot base (degree 2)
 
-    const disc = b * b - 4 * a * c;
+    const disc = discriminant(coeffs, o, 2); // one transcription of the formula (invariants.ts)
 
     if (disc > 0) {
       const sq = Math.sqrt(disc);

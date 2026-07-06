@@ -6,9 +6,12 @@
  * parameters).
  */
 
+export type LiveFamily = "quadratic" | "monicCubic";
+
 export interface RenderRequest {
   type: "render";
   generation: number;
+  family: LiveFamily;
   view: { centerRe: number; centerIm: number; height: number };
   viewportW: number;
   viewportH: number;
@@ -18,7 +21,12 @@ export interface RenderRequest {
 export interface ChunkMessage {
   type: "chunk";
   generation: number;
-  /** Interleaved instances: [x, y, radiusWorld, r, g, b] × count (transferable). */
+  /**
+   * Interleaved instances: [x, y, radiusWorld, r, g, b] × count
+   * (transferable). x, y are RELATIVE to the request's view center (the
+   * generation's anchor): float32 cannot hold absolute deep-zoom
+   * coordinates, but window-relative offsets survive the cast.
+   */
   instances: Float32Array;
   count: number;
 }

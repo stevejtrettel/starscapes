@@ -11,6 +11,16 @@
  * (no Node APIs); PNG encoding lives in src/offline/.
  */
 
+/** Named render tolerances (conventions.md: no magic numbers in kernels). */
+const RENDER = {
+  /** Sub-cell disks are clamped to this subpixel radius so they never vanish. */
+  minSubpixelRadius: 0.75,
+  /** Additive develop: tone clip at this percentile of covered-subpixel weight. */
+  toneClipPercentile: 0.999,
+  /** Log-spaced histogram resolution for the percentile (error ≤ log1p(max)/bins). */
+  toneHistogramBins: 1024,
+} as const;
+
 export interface Raster {
   readonly width: number;
   readonly height: number;
@@ -45,7 +55,7 @@ export function depositDisk(
 ): void {
   const W = raster.width * raster.ss;
   const H = raster.height * raster.ss;
-  const rr = Math.max(r, 0.75);
+  const rr = Math.max(r, RENDER.minSubpixelRadius);
   const x0 = Math.max(0, Math.floor(cx - rr));
   const x1 = Math.min(W - 1, Math.ceil(cx + rr));
   const y0 = Math.max(0, Math.floor(cy - rr));
@@ -98,14 +108,34 @@ export function develop(raster: Raster): Uint8ClampedArray {
   const out = new Uint8ClampedArray(width * height * 3);
   const inv = 1 / (ss * ss);
 
-  // additive: log tone scale against a high percentile of subpixel weight.
+  // additive: log tone scale against a high percentile of subpixel weight,
+  // found with a log-spaced histogram — O(1) memory, since a gallery-scale
+  // raster cannot afford collecting and sorting every covered subpixel.
   let logDenom = 1;
   if (raster.mode === "additive") {
-    const weights: number[] = [];
-    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) weights.push(data[i]);
-    weights.sort((p, q) => p - q);
-    const clip = weights.length > 0 ? weights[Math.floor(weights.length * 0.999)] : 1;
-    logDenom = Math.log1p(clip);
+    let covered = 0;
+    let maxW = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      const w = data[i];
+      if (w > 0) {
+        covered++;
+        if (w > maxW) maxW = w;
+      }
+    }
+    if (covered > 0) {
+      const bins = new Uint32Array(RENDER.toneHistogramBins);
+      const scale = (RENDER.toneHistogramBins - 1) / Math.log1p(maxW);
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] > 0) bins[Math.floor(Math.log1p(data[i]) * scale)]++;
+      }
+      // The percentile weight lives in bin b; use the bin's upper edge
+      // (over-estimates log1p(clip) by ≤ one bin width — invisible in tone).
+      const target = Math.floor(covered * RENDER.toneClipPercentile);
+      let acc = 0;
+      let b = 0;
+      while (b < RENDER.toneHistogramBins - 1 && acc + bins[b] <= target) acc += bins[b++];
+      logDenom = (b + 1) / scale;
+    }
   }
 
   for (let py = 0; py < height; py++) {

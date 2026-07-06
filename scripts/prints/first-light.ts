@@ -5,7 +5,7 @@
  */
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
-import { hyperbolicSize, solid, type Style, upperHalfPlane } from "../../src/core/style.ts";
+import { hyperbolicSize, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
