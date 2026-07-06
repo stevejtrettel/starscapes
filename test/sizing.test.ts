@@ -36,7 +36,7 @@ function fprimeDirect(coeffs: Float64Array, off: number, degree: number, re: num
 }
 
 const row = (fields: Partial<MutableRootRow>): MutableRootRow => ({
-  degree: 2, re: 0, im: 0, mult: 1, disc: 0, fprime: 0, height: 0, irreducible: true,
+  degree: 2, re: 0, im: 0, mult: 1, disc: 0, lead: 1, fprime: 0, height: 0, irreducible: true,
   ...fields,
 });
 
@@ -129,7 +129,11 @@ describe("discLaw conversion identities", () => {
 describe("style pass cap semantics", () => {
   const flat = (c: number, cap: number): Style => ({
     sizing: powerLaw({ c, gamma: 1, delta: 0, cap }),
-    color: (_r, out) => out.fill(0),
+    coloring: {
+      color: (_r, out) => {
+        out.fill(0);
+      },
+    },
   });
   const collect = (coeffs: Float64Array, style: Style) => {
     const slots = allocRootSlots(1, 2);

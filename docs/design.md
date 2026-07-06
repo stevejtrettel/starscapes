@@ -419,6 +419,49 @@ requirements* of the pillar.
 - **Coloring rules are the next conversation** (a parallel vocabulary over
   the same root row: Galois class, disc sign, height, …). Not settled here.
 
+## Level 3 — Coloring rules in code (settled 2026-07-06)
+
+The color half of a style, completing the styling pillar beside sizing.
+
+- **A coloring rule is a function per root of the data on that root** — the
+  RootRow, same as sizing and filters. When a rule needs a fact the row
+  lacks, the row WIDENS with a named column (`lead` arrives with the first
+  by-depth coloring; real-root count when a rule wants it) — geometric
+  facts about the root set enter as named columns with mathematical
+  meaning, never as raw (coeffs, slots) access.
+- **One interface, two kinds of declared structure** (the sizing pattern:
+  an always-callable function plus data saying what it is):
+  `color(row, out)` always; `classes: string[]` present when the rule is a
+  classification (code table, e.g. ["reducible", "C₃", "S₃"]); `scalar:
+  { label, domain, transform: linear | log }` present when the rule is a
+  ramp over a quantity. Bare color functions are the opaque escape hatch.
+- **Categorical is the common case** (Steve) — first in the library, most
+  documented. `byClass({ classes, classify, palette })`: `classify` holds
+  the exact mathematics (cubic Galois: C₃ iff disc is a perfect square,
+  on `row.disc` + `row.irreducible`); palettes are swappable data, length
+  must match class count, loudly. Classifications declare their WHOLE
+  domain (an explicit "reducible" class beats assuming a filter upstream).
+- **Continuous rules declare their domain** — `byScalar({ label, of,
+  domain, transform, ramp })`. Color meaning is ABSOLUTE: a height-40
+  polynomial is the same color at every zoom, live and print; out-of-domain
+  clamps to the ramp ends. Frame-relative normalization rejected (color
+  meaning must not depend on what else is in view — the E6–E12 lesson in
+  color form; the develop-stage tone map's percentile is a rendering
+  concern, not a meaning concern). A one-off print may compute its own
+  domain explicitly in script.
+- **Legends are derivable, not hand-maintained**: HUD and print metadata
+  state "amber = C₃" from `classes`, "light → dark = height 1 → 100 (log)"
+  from `scalar` — the describe() philosophy applied to color.
+- **First-render observation (2026-07-06):** in an upper-half-plane cubic
+  picture the C₃ class is EMPTY by theorem — C₃ needs disc a perfect
+  square, hence disc > 0, hence totally real: every plotted complex-pair
+  cubic is S₃ or reducible. The Galois coloring of the UHP monic-cubic
+  starscape is therefore two-tone, and what it shows is the reducible
+  skeleton (the embedded quadratic starscape, gray) against the S₃ field —
+  itself a new picture. Galois color becomes many-toned at degree 4
+  (complex pairs across S₄/A₄/D₄/C₄/V₄) or in real-root pictures
+  (cap: Infinity, δ = 0 laws).
+
 ## Level 3 — Code conventions (settled)
 
 - **Coefficient storage is ascending**: `coeffs[k]` is a_k, the coefficient

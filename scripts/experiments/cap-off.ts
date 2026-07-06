@@ -4,10 +4,12 @@
  * identical; reports changed-pixel counts and writes both images per pair.
  * Usage: node cap-off.ts [W_PX]
  */
+
+import { solid } from "../../src/core/coloring.ts";
 import { viewConeQuadratics } from "../../src/core/search/cone.ts";
 import { viewConeMonicCubics } from "../../src/core/search/coneMonicCubic.ts";
 import { classic, discLaw } from "../../src/core/sizing.ts";
-import { irreducibleOnly, type RootFilter, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { irreducibleOnly, type RootFilter, type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { type PrintSpec, renderPrint } from "../../src/pipeline/print.ts";
 
@@ -34,7 +36,7 @@ interface Case {
 const CASES: Case[] = [
   {
     name: "quad-classic-0.035",
-    styleAt: (cap) => ({ sizing: classic(0.035, { cap }), color: INK }),
+    styleAt: (cap) => ({ sizing: classic(0.035, { cap }), coloring: INK }),
     search: viewConeQuadratics(),
     filters: [upperHalfPlane],
     view: { center: [0, 1.1], height: 2.6 },
@@ -43,7 +45,7 @@ const CASES: Case[] = [
     name: "cubic-disc4-0.03",
     styleAt: (cap) => ({
       sizing: discLaw({ alpha: 0.25, beta: 0, c: 0.03, degree: 3, cap }),
-      color: INK,
+      coloring: INK,
     }),
     search: viewConeMonicCubics({ dustR: 4 }),
     filters: [upperHalfPlane, irreducibleOnly],

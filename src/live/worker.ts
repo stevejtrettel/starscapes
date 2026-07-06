@@ -23,7 +23,8 @@ import { classic, discLaw, type SizingRule } from "../core/sizing.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots, type RootSlots } from "../core/solve/types.ts";
-import { irreducibleOnly, type RootFilter, solid, upperHalfPlane } from "../core/style.ts";
+import { solid } from "../core/coloring.ts";
+import { irreducibleOnly, type RootFilter, upperHalfPlane } from "../core/style.ts";
 import { styleBatch } from "../core/stylePass.ts";
 import type { ChunkMessage, DoneMessage, LiveFamily, RenderRequest } from "./protocol.ts";
 
@@ -91,7 +92,7 @@ function renderJob(job: RenderRequest): void {
 
   const cEff = def.scaleAt(job.style.sizeScale, view.height);
   const sizing = def.sizing(cEff, job.style.radiusCap);
-  const style = { sizing, color: INK };
+  const style = { sizing, coloring: INK };
   const worldW = view.height * (job.viewportW / job.viewportH);
   const population = def.strategy.populationFor({
     window: {

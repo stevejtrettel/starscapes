@@ -4,10 +4,12 @@
  * scale. Integer cubics ax³ + bx² + cx + d, upper-half-plane roots,
  * √|disc| hyperbolic sizing, opaque compositing.
  */
+
+import { solid } from "../../src/core/coloring.ts";
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
 import { discLaw } from "../../src/core/sizing.ts";
-import { irreducibleOnly, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { irreducibleOnly, type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
@@ -17,7 +19,7 @@ const SIZE = 3600;
 const style: Style = {
   // c·y/√|disc| — the steep (γ, δ) = (2, 2) point at degree 3 (sizing.ts).
   sizing: discLaw({ alpha: 0.5, beta: 1, c: 0.03, degree: 3 }),
-  color: solid(0.05, 0.05, 0.05),
+  coloring: solid(0.05, 0.05, 0.05),
 };
 
 for (const [name, filters] of [

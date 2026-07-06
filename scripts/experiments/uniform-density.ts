@@ -4,17 +4,19 @@
  * Prediction: the top-heavy dust gradient flattens and the near-axis
  * undersampling fills in.
  */
+
+import { solid } from "../../src/core/coloring.ts";
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { inverse } from "../../src/core/search/inverse.ts";
 import { classic } from "../../src/core/sizing.ts";
-import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
 const SIZE = 800;
 const style: Style = {
   sizing: classic(0.035),
-  color: solid(0.05, 0.05, 0.05),
+  coloring: solid(0.05, 0.05, 0.05),
 };
 
 const search = inverse({

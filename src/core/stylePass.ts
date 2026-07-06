@@ -34,7 +34,7 @@ export function styleBatch(
   const stride = degree + 1;
   const { sizing } = style;
   const row: MutableRootRow = {
-    degree, re: 0, im: 0, mult: 0, disc: 0, fprime: 0, height: 0, irreducible: true,
+    degree, re: 0, im: 0, mult: 0, disc: 0, lead: 1, fprime: 0, height: 0, irreducible: true,
   };
   const realRoots = new Float64Array(degree);
   let roots = 0;
@@ -44,7 +44,8 @@ export function styleBatch(
     row.disc = discriminant(coeffs, off, degree);
     row.height = height(coeffs, off, stride);
     const base = i * degree;
-    const leadAbs = Math.abs(coeffs[off + degree]);
+    row.lead = coeffs[off + degree];
+    const leadAbs = Math.abs(row.lead);
 
     if (degree === 2) {
       row.irreducible = quadraticIrreducible(row.disc);
@@ -75,7 +76,7 @@ export function styleBatch(
       if (capR < r) r = capR;
       if (!(r > 0) || !Number.isFinite(r)) continue;
 
-      style.color(row, colorOut);
+      style.coloring.color(row, colorOut);
       emit(row.re, row.im, r, colorOut[0], colorOut[1], colorOut[2]);
     }
   }

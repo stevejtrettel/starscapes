@@ -8,9 +8,11 @@
  * depth from the classic law and the print's worldPerPixel), everything
  * drawn, opaque compositing, 2× supersampling.
  */
+
+import { solid } from "../../src/core/coloring.ts";
 import { constantInkScaleQuadratic, viewConeQuadratics } from "../../src/core/search/cone.ts";
 import { classic } from "../../src/core/sizing.ts";
-import { solid, upperHalfPlane } from "../../src/core/style.ts";
+import { upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
@@ -27,7 +29,7 @@ const t0 = performance.now();
 const result = renderPrint({
   search: viewConeQuadratics(),
   filters: [upperHalfPlane],
-  style: { sizing: classic(cEff), color: solid(0.05, 0.05, 0.05) },
+  style: { sizing: classic(cEff), coloring: solid(0.05, 0.05, 0.05) },
   view: VIEW,
   image: { width: SIZE, compositing: "opaque" },
 });

@@ -9,9 +9,10 @@
  * y^{1−2β}; std's β = 0 shows the observed y-gradient).
  */
 
+import { solid } from "../../src/core/coloring.ts";
 import { viewConeQuadratics } from "../../src/core/search/cone.ts";
 import { classic, uniform } from "../../src/core/sizing.ts";
-import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
@@ -22,7 +23,7 @@ const SIZING = (process.argv[5] ?? "std") as "std" | "uniform";
 
 const style: Style = {
   sizing: SIZING === "std" ? classic(C_SZ) : uniform(C_SZ),
-  color: solid(0.05, 0.05, 0.05),
+  coloring: solid(0.05, 0.05, 0.05),
 };
 
 // The depth derivation holds for the classic law; the uniform comparison

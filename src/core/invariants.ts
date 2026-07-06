@@ -36,15 +36,20 @@ export function height(coeffs: Float64Array, off: number, len: number): number {
   return h;
 }
 
+/** Exact for integers below 2⁵² (√ of a perfect square is exact in
+ *  float64 there); negative numbers are not squares. */
+export function isPerfectSquare(n: number): boolean {
+  if (n < 0) return false;
+  const s = Math.round(Math.sqrt(n));
+  return s * s === n;
+}
+
 /**
  * Quadratic irreducibility over ℚ: reducible ⟺ the discriminant is a
- * perfect square ≥ 0 (exact: disc is an exact integer and √ of a perfect
- * square < 2⁵² is exact in float64).
+ * perfect square ≥ 0 (exact — see isPerfectSquare).
  */
 export function quadraticIrreducible(disc: number): boolean {
-  if (disc < 0) return true;
-  const s = Math.round(Math.sqrt(disc));
-  return s * s !== disc;
+  return !isPerfectSquare(disc);
 }
 
 /**

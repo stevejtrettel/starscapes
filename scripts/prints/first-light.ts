@@ -5,16 +5,18 @@
  * steeper in depth than classic(c) — opaque compositing (smaller disks on
  * top).
  */
+
+import { solid } from "../../src/core/coloring.ts";
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
 import { box } from "../../src/core/search/forward.ts";
 import { discLaw } from "../../src/core/sizing.ts";
-import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
 const style: Style = {
   sizing: discLaw({ alpha: 1, beta: 1, c: 0.06, degree: 2 }),
-  color: solid(0.05, 0.05, 0.05),
+  coloring: solid(0.05, 0.05, 0.05),
 };
 
 for (const compositing of ["opaque", "additive"] as const) {

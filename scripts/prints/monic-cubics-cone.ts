@@ -13,9 +13,10 @@
  * vertically even (the uniformity locus, doc §7).
  */
 
+import { solid } from "../../src/core/coloring.ts";
 import { viewConeMonicCubics } from "../../src/core/search/coneMonicCubic.ts";
 import { classic, discLaw, type SizingRule } from "../../src/core/sizing.ts";
-import { irreducibleOnly, type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { irreducibleOnly, type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
 import { renderPrint } from "../../src/pipeline/print.ts";
 
@@ -34,7 +35,7 @@ const laws: Record<typeof SIZING, SizingRule> = {
 
 const style: Style = {
   sizing: laws[SIZING],
-  color: solid(0.05, 0.05, 0.05),
+  coloring: solid(0.05, 0.05, 0.05),
 };
 
 // The reach derivation holds for the disc¼ / uniform law; the disc and
