@@ -12,7 +12,8 @@ records in `docs/` are the authority, and code exists to realize them.
 
 ```bash
 npm install
-npm run dev                                # the live explorer (drag to pan, scroll to zoom)
+npm run dev quadratics                     # the live explorer (drag to pan, scroll to zoom)
+npm run dev                                # ...or serve everything, pick a demo from the landing page
 npx vitest run                             # the test suite
 node scripts/prints/first-light.ts         # the classic quadratic starscape → outputs/
 node scripts/prints/geodesic-deep.ts       # a deep 3600px print of a geodesic window

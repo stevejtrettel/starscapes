@@ -12,7 +12,15 @@
  * member is not. Completeness argument: doc §1. No duplicates: d-ranges
  * from the ≤ 2 valid s-intervals are merged before emission.
  */
-import type { Window } from "./inverse.ts";
+import { monicPolynomials } from "../family/lattice.ts";
+import {
+  DUST_FACTOR,
+  fattenWindow,
+  type Population,
+  type SearchStrategy,
+  type ViewContext,
+  type Window,
+} from "./types.ts";
 
 const EPS = 1e-9;
 
@@ -139,4 +147,44 @@ export function coneMonicCubics(
 
   if (inBatch > 0) onBatch(coeffs, inBatch);
   return total;
+}
+
+/** Default print-texture depth multiplier on ρ (labeled aesthetic dial:
+ *  population ∝ ρ³ makes dust cheap — docs/monic-cubic-sampling.md §4). */
+const DEFAULT_DUST_R = 4;
+
+/**
+ * Constant-ink zoom law for the monic cubic disc¼ size law: ink ∝
+ * c^{5/2}·(H/h)^{1/2} with ρ ∝ √(c/p), so constant perceived weight needs
+ * c(h) = c₀·(h/h₀)^{1/5} — the fifth-root analogue of the quadratics' cube
+ * root (docs/monic-cubic-sampling.md §7.3).
+ */
+export function constantInkScaleMonicCubic(c0: number, h: number, homeH: number): number {
+  return c0 * (h / homeH) ** (1 / 5);
+}
+
+/**
+ * The backward strategy for monic integer cubics: Φ₃ᵐᵒⁿ(W, ρ) with the
+ * real-root reach ρ derived from visibility (docs/monic-cubic-sampling.md
+ * §3): ρ = R·√(3c/(2·worldPerPixel)), R the dust dial. The window is
+ * fattened by c — generous vs the largest escaping dot (labeled heuristic,
+ * matching the live worker's validated look).
+ */
+export function viewConeMonicCubics(opts: { dustR?: number } = {}): SearchStrategy {
+  const dustR = opts.dustR ?? DEFAULT_DUST_R;
+  const family = monicPolynomials({ degree: 3 });
+  return {
+    mode: "backward",
+    family,
+    populationFor(view: ViewContext): Population {
+      const c = view.sizeScale;
+      const rho = dustR * Math.sqrt((DUST_FACTOR * c) / (2 * view.worldPerPixel));
+      const window = fattenWindow(view.window, c);
+      return {
+        describe: () => `Φ₃ᵐᵒⁿ(W, ρ = ${rho.toFixed(1)})`,
+        coverage: "proved", // completeness by the §1 slicing argument (E13)
+        enumerate: (onBatch) => coneMonicCubics(window, rho, onBatch),
+      };
+    },
+  };
 }

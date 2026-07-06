@@ -14,6 +14,10 @@
  * `fixed-ε` baseline (design.md: the nearness criterion is an experimental
  * surface).
  */
+import type { Window } from "./types.ts";
+
+// Window's home is now types.ts; re-exported here for older importers.
+export type { Window } from "./types.ts";
 
 export interface InverseSearch {
   readonly kind: "inverse";
@@ -45,12 +49,6 @@ export function inverse(opts: {
   };
 }
 
-export interface Window {
-  left: number;
-  top: number;
-  worldW: number;
-  worldH: number;
-}
 
 /**
  * Harvest over a seedsX × seedsY grid of trace points (one per output pixel

@@ -8,6 +8,7 @@ import type { Family } from "../core/family/types.ts";
 import { cubicIrreducible, discriminant, height, quadraticIrreducible } from "../core/invariants.ts";
 import { type BoxSearch, DEFAULT_BATCH_CAPACITY, enumerateBox } from "../core/search/forward.ts";
 import { harvestQuadratics, type InverseSearch } from "../core/search/inverse.ts";
+import type { Population, SearchStrategy } from "../core/search/types.ts";
 import { solveCubicBatch } from "../core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../core/solve/quadratic.ts";
 import { allocRootSlots } from "../core/solve/types.ts";
@@ -22,8 +23,9 @@ export interface View {
 }
 
 export interface PrintSpec {
-  family: Family;
-  search: BoxSearch | InverseSearch;
+  /** Required for box/inverse searches; a SearchStrategy brings its own. */
+  family?: Family;
+  search: BoxSearch | InverseSearch | SearchStrategy;
   filters?: RootFilter[];
   style: Style;
   view: View;
@@ -39,11 +41,19 @@ export interface PrintResult {
   rgb: Uint8ClampedArray;
   width: number;
   height: number;
-  stats: { polynomials: number; roots: number; drawn: number };
+  stats: {
+    polynomials: number;
+    roots: number;
+    drawn: number;
+    /** Φ's frozen provenance (strategy searches only). */
+    population?: string;
+  };
 }
 
 export function renderPrint(spec: PrintSpec): PrintResult {
-  const { family, style } = spec;
+  const family = "mode" in spec.search ? spec.search.family : spec.family;
+  if (!family) throw new Error("box/inverse searches need spec.family");
+  const { style } = spec;
   const degree = family.degree;
   const stride = degree + 1;
   const filters = spec.filters ?? [];
@@ -123,7 +133,19 @@ export function renderPrint(spec: PrintSpec): PrintResult {
   };
 
   let polynomials: number;
-  if (spec.search.kind === "box") {
+  let population: Population | undefined;
+  if ("mode" in spec.search) {
+    // Strategy: bind to this print's view; every cutoff is derived.
+    if (style.sizeScale === undefined) {
+      throw new Error("a search strategy derives its depth from the style's declared sizeScale");
+    }
+    population = spec.search.populationFor({
+      window: { left, top, worldW, worldH },
+      worldPerPixel: worldH / imgHeight,
+      sizeScale: style.sizeScale,
+    });
+    polynomials = population.enumerate(onBatch);
+  } else if (spec.search.kind === "box") {
     polynomials = enumerateBox(family, spec.search, onBatch);
   } else {
     if (degree !== 2) throw new Error("inverse search supports quadratics only (for now)");
@@ -140,6 +162,11 @@ export function renderPrint(spec: PrintSpec): PrintResult {
     rgb: develop(raster),
     width,
     height: imgHeight,
-    stats: { polynomials, roots, drawn },
+    stats: {
+      polynomials,
+      roots,
+      drawn,
+      ...(population ? { population: population.describe() } : {}),
+    },
   };
 }

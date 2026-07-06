@@ -1,66 +1,50 @@
 /**
- * The quadratic starscape at print scale: view-cone population at the
- * derived visibility depth (docs/live-sampling.md), hyperbolic sizing —
- * the E8-validated look, with resolution doing the deepening.
+ * The quadratic starscape at print scale: the backward view-cone strategy
+ * (Φ_cone at the derived visibility depth, docs/live-sampling.md) through
+ * the shared print pipeline — the E8-validated look, with resolution doing
+ * the deepening.
  * Usage: node quadratics-cone.ts [c] [W] [H] [std|uniform]
- * uniform: r_world = c*sqrt(y)/sqrt|disc| — the beta = 1/2 law on the
- * quadratic uniformity locus (member density 4a^2*y per unit area, so
- * ink(y) ~ y^{1-2beta}; std's beta = 0 shows the observed y-gradient).
+ * uniform: r_world = c·√y/√|disc| — the β = ½ law on the quadratic
+ * uniformity locus (member density 4a²y per unit area, so ink(y) ~
+ * y^{1−2β}; std's β = 0 shows the observed y-gradient).
  */
-import { discriminant } from "../../src/core/invariants.ts";
-import { coneQuadratics } from "../../src/core/search/cone.ts";
-import { solveQuadraticBatch } from "../../src/core/solve/quadratic.ts";
-import { allocRootSlots } from "../../src/core/solve/types.ts";
-import { writePng } from "../../src/offline/png.ts";
-import { createRaster, depositDisk, develop } from "../../src/render/raster.ts";
 
-const VIEW = { centerRe: 0, centerIm: 1.1, height: 2.6 };
+import { viewConeQuadratics } from "../../src/core/search/cone.ts";
+import { type Style, solid, upperHalfPlane } from "../../src/core/style.ts";
+import { writePng } from "../../src/offline/png.ts";
+import { renderPrint } from "../../src/pipeline/print.ts";
+
 const C_SZ = Number(process.argv[2] ?? 0.035);
 const W_PX = Number(process.argv[3] ?? 3600);
 const H_PX = Number(process.argv[4] ?? W_PX);
-const SS = 2;
-const RADIUS_CAP = 0.5;
-const DUST_FACTOR = 3;
 const SIZING = (process.argv[5] ?? "std") as "std" | "uniform";
+const RADIUS_CAP = 0.5;
 
-const aMax = Math.ceil((DUST_FACTOR * C_SZ * H_PX) / (2 * VIEW.height));
-const worldW = VIEW.height * (W_PX / H_PX);
-const left = VIEW.centerRe - worldW / 2;
-const top = VIEW.centerIm + VIEW.height / 2;
-const pxPerWorld = (H_PX / VIEW.height) * SS;
-const pad = C_SZ / 2;
-const window = { left: left - pad, top: top + pad, worldW: worldW + 2 * pad, worldH: VIEW.height + 2 * pad };
+const style: Style = {
+  sizeUnits: "hyperbolic",
+  sizeScale: C_SZ,
+  size: SIZING === "std"
+    ? (row) => Math.min(RADIUS_CAP, C_SZ / Math.sqrt(Math.abs(row.disc)))
+    : (row) => Math.min(RADIUS_CAP, C_SZ / (Math.sqrt(row.im) * Math.sqrt(Math.abs(row.disc)))),
+  color: solid(0.05, 0.05, 0.05),
+};
 
-console.log(`quadratics-cone: ${W_PX}x${H_PX}px, c = ${C_SZ}, depth a ≤ ${aMax}`);
-
+console.log(`quadratics-cone: ${W_PX}x${H_PX}px, c = ${C_SZ}, ${SIZING}`);
 const t0 = performance.now();
-const raster = createRaster(W_PX, H_PX, "opaque", SS);
-const slots = allocRootSlots(4096, 2);
-let drawn = 0;
 
-const polys = coneQuadratics(window, 1, aMax, (coeffs, count) => {
-  solveQuadraticBatch(coeffs, count, slots);
-  for (let i = 0; i < count; i++) {
-    const disc = discriminant(coeffs, i * 3, 2);
-    if (disc >= 0) continue; // UHP pairs only (automatically irreducible)
-    const re = slots.re[i * 2];
-    const im = slots.im[i * 2];
-    const rWorld = SIZING === "std"
-      ? Math.min(RADIUS_CAP * im, (C_SZ / Math.sqrt(-disc)) * im)
-      : Math.min(RADIUS_CAP * im, (C_SZ * Math.sqrt(im)) / Math.sqrt(-disc));
-    depositDisk(
-      raster,
-      (re - left) * pxPerWorld,
-      (top - im) * pxPerWorld,
-      rWorld * pxPerWorld,
-      0.05, 0.05, 0.05,
-    );
-    drawn++;
-  }
+const result = renderPrint({
+  search: viewConeQuadratics(),
+  filters: [upperHalfPlane],
+  style,
+  view: { center: [0, 1.1], height: 2.6 },
+  image: { width: W_PX, height: H_PX, compositing: "opaque" },
 });
 
-const tMarch = performance.now();
-console.log(`  ${polys} quadratics, ${drawn} drawn — ${((tMarch - t0) / 1000).toFixed(1)} s`);
+const tRender = performance.now();
+console.log(
+  `  ${result.stats.population} — ${result.stats.polynomials} quadratics, ` +
+  `${result.stats.drawn} drawn — ${((tRender - t0) / 1000).toFixed(1)} s`,
+);
 
-writePng(`outputs/quadratics-cone-${C_SZ}-${SIZING}-${W_PX}x${H_PX}.png`, develop(raster), W_PX, H_PX);
-console.log(`  written — ${((performance.now() - tMarch) / 1000).toFixed(1)} s`);
+writePng(`outputs/quadratics-cone-${C_SZ}-${SIZING}-${W_PX}x${H_PX}.png`, result.rgb, W_PX, H_PX);
+console.log(`  written — ${((performance.now() - tRender) / 1000).toFixed(1)} s`);

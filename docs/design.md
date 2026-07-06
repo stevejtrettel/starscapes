@@ -310,10 +310,10 @@ coverage plan; and Φ_disc's faithful picture is Euclidean-dense near ℝ
 (uniform in *hyperbolic* area, as its SL₂-invariance dictates) — "is it
 meant to be even" is exactly the "which Φ" question.
 
-*Still open at Level 3:* the contract interface shape (under discussion);
-the tube-radius lemma for Φ_disc's proved plan; slicing-coordinate choice
-for constrained families (cofactor vs numerically optimal bases,
-degenerate z); symmetry hooks in the march.
+*Still open at Level 3:* the tube-radius lemma for Φ_disc's proved plan;
+slicing-coordinate choice for constrained families (cofactor vs numerically
+optimal bases, degenerate z); symmetry hooks in the march. (The contract
+interface shape is settled — see "Search strategies in code" below.)
 
 **The live view's settled sampling method — view-cone enumeration, the
 derived depth law, and the constant-ink scale law c(h) ∝ h^⅓ — is written
@@ -327,6 +327,38 @@ contract in the codebase).
    quality) — refined during phases 1–2 as real images exist to judge.
 
 ---
+
+## Level 3 — Search strategies in code (settled 2026-07-05)
+
+Sampling is first-class: two types split *how we choose* from *what got
+chosen*.
+
+- **SearchStrategy** — the citizen. `mode: "forward" | "backward"`, its
+  family, and `populationFor(view)`: bind to a view, derive every cutoff
+  (nothing dialed), return the concrete population. Forward strategies cut
+  coefficient space and ignore the window; backward strategies start from
+  the window in root space. The picture spec stores strategy + dials
+  alongside the view, so the camera is single-sourced; the live explorer
+  is honestly "regenerate Φ on every camera move."
+- **Population** — Φ itself, finite and bound. `describe()` freezes the
+  provenance string ("Φ_cone(W, A = 812)") that embeds in artifacts;
+  `enumerate(onBatch)` streams every member in kernel batches,
+  deterministic order, possibly overshooting by rounding slack (exact
+  membership / clipping filters downstream); `coverage: "proved" |
+  "heuristic"` makes the plan's status travel with the data.
+- **ViewContext carries the style's size scale**, not just the window:
+  derived depth is style-dependent through visibility. This is the design's
+  own statement that populations like Φ_visible are view- AND
+  style-dependent — a real coupling, not a leak.
+- **The interface is family-generic; implementations are per-family
+  derivations** (derivations over mechanisms). A family joins the backward
+  mode the way monic cubics did: slicing derivation in a doc, enumerator,
+  parity test against brute force, registration.
+- Placement of the existing code: `box` ⇒ the forward strategy;
+  `coneQuadratics` / `coneMonicCubics` plus the depth/reach/pad laws now
+  inlined in the live worker ⇒ the two backward strategies (the laws move
+  into the strategies, in core, cited to their doc sections); the ray/tube
+  harvest stays the shader-mode reference, not wrapped in v1.
 
 ## Level 3 — Code conventions (settled)
 

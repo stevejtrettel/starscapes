@@ -17,7 +17,15 @@
  * by the style's maximum dot radius so dots centered just outside the view
  * still get drawn.
  */
-import type { Window } from "./inverse.ts";
+import { integerPolynomials } from "../family/lattice.ts";
+import {
+  DUST_FACTOR,
+  fattenWindow,
+  type Population,
+  type SearchStrategy,
+  type ViewContext,
+  type Window,
+} from "./types.ts";
 
 const EPS = 1e-9;
 
@@ -71,4 +79,47 @@ export function coneQuadratics(
 
   if (inBatch > 0) onBatch(coeffs, inBatch);
   return total;
+}
+
+/** Never march shallower than this, so near-empty views keep their landmarks. */
+const DEPTH_FLOOR = 5;
+
+/**
+ * E9's constant-ink zoom law for the quadratic hyperbolic size law:
+ * ink ∝ c³/h, so c(h) = c₀·(h/h₀)^⅓ holds perceived weight constant at
+ * every depth (live-sampling.md §3). h₀ is the home view, which is
+ * unchanged; a zoomed view is the same visual budget spent on deeper
+ * polynomials.
+ */
+export function constantInkScaleQuadratic(c0: number, h: number, homeH: number): number {
+  return c0 * Math.cbrt(h / homeH);
+}
+
+/**
+ * The backward strategy for integer quadratics: Φ_cone(W, A) at the derived
+ * visibility depth (live-sampling.md §2). A hyperbolic-law dot from leading
+ * coefficient a has world radius c/2a independent of its height, so
+ * visibility means a ≤ c/(2·worldPerPixel); dust factor ×3, floored at
+ * DEPTH_FLOOR. The window is fattened by the largest dot radius (c/2 at
+ * a = 1) so dots centered just outside the view still get drawn.
+ */
+export function viewConeQuadratics(): SearchStrategy {
+  const family = integerPolynomials({ degree: 2 });
+  return {
+    mode: "backward",
+    family,
+    populationFor(view: ViewContext): Population {
+      const c = view.sizeScale;
+      const aMax = Math.max(
+        DEPTH_FLOOR,
+        Math.ceil((DUST_FACTOR * c) / (2 * view.worldPerPixel)),
+      );
+      const window = fattenWindow(view.window, c / 2);
+      return {
+        describe: () => `Φ_cone(W, A = ${aMax})`,
+        coverage: "proved", // completeness by construction (live-sampling.md §1, E4/E5)
+        enumerate: (onBatch) => coneQuadratics(window, 1, aMax, onBatch),
+      };
+    },
+  };
 }

@@ -35,8 +35,9 @@ export interface DoneMessage {
   type: "done";
   generation: number;
   polynomials: number;
-  /** March depth for this view (derived from zoom — see worker). */
-  aMax: number;
+  /** The bound population's provenance, e.g. "Φ_cone(W, A = 812)" —
+   *  Population.describe() with the derived cutoffs frozen in. */
+  population: string;
   ms: number;
 }
 

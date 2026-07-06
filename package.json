@@ -5,9 +5,7 @@
   "type": "module",
   "description": "Algebraic starscapes: roots of polynomial families in the complex plane",
   "scripts": {
-    "dev": "vite",
-    "quadratics": "vite --open /demos/quadratics/",
-    "monic-cubics": "vite --open /demos/monic-cubics/",
+    "dev": "node scripts/run-demo.ts",
     "build": "vite build --base=./",
     "preview": "vite preview",
     "typecheck": "tsc",

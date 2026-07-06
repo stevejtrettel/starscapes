@@ -23,6 +23,13 @@ export type SizeUnits = "world" | "screen" | "hyperbolic";
 
 export interface Style {
   readonly sizeUnits: SizeUnits;
+  /**
+   * Declared scale constant c of the size law, when the style has one.
+   * Backward search strategies derive their visibility depth from it —
+   * declared structure buys derivation (design.md Level 3). Styles without
+   * one still render under forward searches.
+   */
+  readonly sizeScale?: number;
   /** Radius in the declared units. */
   size(row: RootRow): number;
   /** Writes r, g, b in [0, 1] into out[0..2]. */
@@ -43,9 +50,12 @@ export const irreducibleOnly: RootFilter = (row) => row.irreducible;
  * (Euclidean radius is then Im z · scale/|disc| — the renderer applies the
  * Im z factor because the units say "hyperbolic".)
  */
-export function hyperbolicSize(scale: number, cap = 0.5): Pick<Style, "sizeUnits" | "size"> {
+export function hyperbolicSize(
+  scale: number, cap = 0.5,
+): Pick<Style, "sizeUnits" | "sizeScale" | "size"> {
   return {
     sizeUnits: "hyperbolic",
+    sizeScale: scale,
     size: (row) => Math.min(cap, scale / Math.abs(row.disc)),
   };
 }

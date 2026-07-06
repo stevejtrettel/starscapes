@@ -17,7 +17,7 @@ export interface RenderCallbacks {
     instances: Float32Array, count: number, first: boolean,
     anchorRe: number, anchorIm: number,
   ): void;
-  onDone(stats: { polynomials: number; aMax: number; ms: number }): void;
+  onDone(stats: { polynomials: number; population: string; ms: number }): void;
 }
 
 export interface RenderService {
@@ -44,7 +44,7 @@ export function createRenderService(
       seenFirstOf = generation;
       callbacks.onChunk(msg.instances, msg.count, first, anchorRe, anchorIm);
     } else {
-      callbacks.onDone({ polynomials: msg.polynomials, aMax: msg.aMax, ms: msg.ms });
+      callbacks.onDone({ polynomials: msg.polynomials, population: msg.population, ms: msg.ms });
     }
   };
 

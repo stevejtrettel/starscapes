@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { integerPolynomials } from "../src/core/family/lattice.ts";
+import { integerPolynomials, monicPolynomials } from "../src/core/family/lattice.ts";
 import { box, enumerateBox } from "../src/core/search/forward.ts";
 import { polyAt } from "../src/core/views.ts";
 
@@ -49,5 +49,33 @@ describe("integerPolynomials ∩ box", () => {
     const seen = collect(2, 1);
     expect(seen).toContain("x^2 - 1");
     expect(seen).toContain("x^2 + x + 1");
+  });
+});
+
+describe("monicPolynomials ∩ box", () => {
+  function collectMonic(degree: number, bound: number): string[] {
+    const family = monicPolynomials({ degree });
+    const seen: string[] = [];
+    enumerateBox(family, box(bound), (coeffs, count) => {
+      for (let i = 0; i < count; i++) seen.push(polyAt(coeffs, degree, i).toString());
+    });
+    return seen;
+  }
+
+  it("counts exactly: (2B + 1)^degree, leading coefficient always 1", () => {
+    // degree 3, bound 1: 3³ = 27
+    expect(collectMonic(3, 1)).toHaveLength(27);
+    // degree 2, bound 2: 5² = 25
+    expect(collectMonic(2, 2)).toHaveLength(25);
+    const family = monicPolynomials({ degree: 3 });
+    enumerateBox(family, box(2), (coeffs, count) => {
+      for (let i = 0; i < count; i++) expect(coeffs[i * 4 + 3]).toBe(1);
+    });
+  });
+
+  it("contains the classics", () => {
+    const seen = collectMonic(3, 1);
+    expect(seen).toContain("x^3 - x - 1"); // the plastic number's minimal polynomial
+    expect(new Set(seen).size).toBe(seen.length);
   });
 });

@@ -36,8 +36,8 @@ export function startExplorer(family: LiveFamily): void {
       renderer.append(instances, count);
       repaint = true;
     },
-    onDone({ polynomials, aMax, ms }) {
-      status = `${polynomials} polys · depth ≤ ${aMax} · ${ms.toFixed(0)} ms`;
+    onDone({ polynomials, population, ms }) {
+      status = `${population} · ${polynomials} polys · ${ms.toFixed(0)} ms`;
       repaint = true;
     },
   });
@@ -94,7 +94,7 @@ export function startExplorer(family: LiveFamily): void {
         ? ` · ⚠ ${renderer.dropped} dropped (instance buffer full)`
         : "";
       hud.textContent =
-        `${FAMILY_LABEL[family]} · view-cone · ${renderer.count} roots · ${status} · ` +
+        `${FAMILY_LABEL[family]} · ${renderer.count} roots · ${status} · ` +
         `center ${camera.centerRe.toFixed(6)} + ${camera.centerIm.toFixed(6)}i · ` +
         `height ${camera.height.toExponential(2)}${overflow}`;
     }
