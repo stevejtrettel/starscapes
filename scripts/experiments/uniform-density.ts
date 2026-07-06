@@ -5,19 +5,12 @@
  * undersampling fills in.
  */
 
-import { solid } from "../../src/core/coloring.ts";
-import { integerPolynomials } from "../../src/core/family/lattice.ts";
-import { inverse } from "../../src/core/search/inverse.ts";
+import { inverse, inverseQuadratics } from "../../src/core/search/inverse.ts";
 import { classic } from "../../src/core/sizing.ts";
-import { type Style, upperHalfPlane } from "../../src/core/style.ts";
-import { writePng } from "../../src/offline/png.ts";
-import { renderPrint } from "../../src/pipeline/print.ts";
+import { print } from "../../src/pipeline/print.ts";
 
 const SIZE = 800;
-const style: Style = {
-  sizing: classic(0.035),
-  coloring: solid(0.05, 0.05, 0.05),
-};
+const law = classic(0.035);
 
 const search = inverse({
   aMax: 400,
@@ -26,18 +19,17 @@ const search = inverse({
   adaptiveDepth: 9,    // march to a ≈ 9/y before the hard cap
 });
 
-const t0 = performance.now();
-const result = renderPrint({
-  family: integerPolynomials({ degree: 2 }),
-  search,
-  filters: [upperHalfPlane],
-  style,
+console.log("uniform-visual:");
+print("uniform-visual", {
   view: { center: [0, 1.1], height: 2.6 },
   image: { width: SIZE, compositing: "opaque" },
+  picture: (view) => ({
+    collection: inverseQuadratics(search, view.window, SIZE, SIZE),
+    draw(poly, dot) {
+      for (const root of poly.roots) {
+        if (root.im <= 0) continue;
+        dot(root, law.size(root), 0.05, 0.05, 0.05);
+      }
+    },
+  }),
 });
-const ms = performance.now() - t0;
-
-writePng("outputs/uniform-visual.png", result.rgb, result.width, result.height);
-console.log(
-  `visual+adaptive: ${result.stats.polynomials} polys, ${result.stats.drawn} drawn, ${ms.toFixed(0)} ms`,
-);

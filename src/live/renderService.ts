@@ -2,10 +2,13 @@
  * Main-thread client of the render worker: one call per view change, a
  * generation counter to identify the current picture, callbacks for chunks
  * and completion. Stale messages (older generations) are dropped here so
- * consumers never see them.
+ * consumers never see them. The worker comes from a caller-supplied SPAWN
+ * FACTORY — a demo passes its own module as the worker via the literal
+ * `new Worker(new URL("./main.ts", import.meta.url), { type: "module" })`,
+ * the one form Vite's static analysis bundles correctly in dev AND build.
  */
 import type { Camera } from "./camera.ts";
-import type { LiveFamily, RenderRequest, WorkerMessage } from "./protocol.ts";
+import type { RenderRequest, WorkerMessage } from "./protocol.ts";
 
 export interface RenderCallbacks {
   /**
@@ -21,14 +24,14 @@ export interface RenderCallbacks {
 }
 
 export interface RenderService {
-  request(camera: Camera, viewportW: number, viewportH: number, family: LiveFamily): void;
+  request(camera: Camera, viewportW: number, viewportH: number, params?: unknown): void;
 }
 
 export function createRenderService(
-  style: { sizeScale: number; radiusCap: number },
+  spawn: () => Worker,
   callbacks: RenderCallbacks,
 ): RenderService {
-  const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+  const worker = spawn();
   let generation = 0;
   let seenFirstOf = 0;
   // The current generation's anchor (its request's view center). Stale
@@ -49,18 +52,17 @@ export function createRenderService(
   };
 
   return {
-    request(camera, viewportW, viewportH, family) {
+    request(camera, viewportW, viewportH, params) {
       generation++;
       anchorRe = camera.centerRe;
       anchorIm = camera.centerIm;
       const req: RenderRequest = {
         type: "render",
         generation,
-        family,
         view: { centerRe: camera.centerRe, centerIm: camera.centerIm, height: camera.height },
         viewportW,
         viewportH,
-        style,
+        ...(params !== undefined ? { params } : {}),
       };
       worker.postMessage(req);
     },

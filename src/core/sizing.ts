@@ -3,13 +3,15 @@
  * "Sizing rules in code", settled 2026-07-06).
  *
  * A sizing rule maps a root's row to the EUCLIDEAN WORLD RADIUS of its dot —
- * the size we actually draw. Rules are arbitrary functions; a rule MAY
- * additionally declare that it is a power law, and that declaration is what
- * backward search strategies derive their cutoffs from (Option A: the
- * strategy pulls; an opaque rule bound to a structure-needing strategy
- * fails loudly at bind time).
+ * the size we actually draw, cap applied. Rules are arbitrary functions;
+ * the named constructors below all live in one documented coordinate
+ * system, and its constants are ALSO what the demos feed the depth-law
+ * functions (visibleDepthQuadratics, visibleReachMonicCubics) when a
+ * backward collection's cutoff is visibility — the law never crosses into
+ * search, only a number derived from it (design.md, "The collection
+ * model").
  *
- * ── The declared power-law form ──────────────────────────────────────────
+ * ── The power-law form ───────────────────────────────────────────────────
  *
  *     r = c · y^δ / |f′(z)|^γ
  *
@@ -47,29 +49,19 @@
  * bare (E14: inert for quadratics at standard scales, a near-axis dust
  * band for cubics). Note a FINITE cap zeroes dots on the real axis itself
  * (y = 0 ⇒ radius 0); pictures of real roots want cap: Infinity plus a
- * δ = 0 law. The cap is applied by the style pass (stylePass.ts), NaN-safe
- * for the Infinity·0 corner.
+ * δ = 0 law. The cap is applied INSIDE size() — a rule owns its cap fully —
+ * NaN-safe for the Infinity·0 corner.
  */
-import type { RootRow } from "./style.ts";
-
-/** The declared structure: r = c · y^δ / |f′(z)|^γ. */
-export interface PowerLaw {
-  readonly c: number;
-  readonly gamma: number;
-  readonly delta: number;
-}
+import type { RootRow } from "./rows.ts";
 
 export interface SizingRule {
-  /** Euclidean world radius of the dot, pre-cap. */
+  /** Euclidean world radius of the dot — FINAL, cap applied: a rule owns
+   *  its cap fully (design.md, "sentences, not specs"); no pass caps
+   *  behind the author's back. */
   size(row: RootRow): number;
   /** Hyperbolic-units cap: dot ≤ cap · y world radius. Infinity = uncapped. */
   readonly cap: number;
-  /** Present iff the rule is the declared power law (docs above). */
-  readonly power?: PowerLaw;
 }
-
-/** What a backward strategy sees of the style when binding (search/types). */
-export type SizingStructure = Pick<SizingRule, "cap" | "power">;
 
 /** The house cap (hyperbolic units) — see file comment. */
 export const DEFAULT_CAP = 0.5;
@@ -97,8 +89,12 @@ export function powerLaw(opts: {
   const fpPow = powOf(gamma);
   return {
     cap,
-    power: { c, gamma, delta },
-    size: (row) => (c * yPow(Math.abs(row.im))) / fpPow(row.fprime),
+    size: (row) => {
+      let r = (c * yPow(Math.abs(row.im))) / fpPow(row.fprime);
+      const capR = cap * Math.abs(row.im); // NaN when cap=∞, y=0 — comparison is then false
+      if (capR < r) r = capR;
+      return r;
+    },
   };
 }
 
@@ -142,35 +138,4 @@ export function discLaw(opts: {
     delta: beta + 2 * alpha,
     cap: opts.cap,
   });
-}
-
-/**
- * Option A's loud failure: a backward strategy whose cutoff derivation
- * holds for one specific law point demands exactly that point. Returns the
- * declared power law or throws with the pairing spelled out.
- */
-export function requirePower(
-  sizing: SizingStructure,
-  gamma: number,
-  delta: number,
-  strategy: string,
-): PowerLaw {
-  const p = sizing.power;
-  if (!p) {
-    throw new Error(
-      `${strategy}: this backward strategy derives its cutoffs from a declared ` +
-        `power law r = c·y^δ/|f′(z)|^γ, but the sizing rule declares none. ` +
-        `Use powerLaw/classic/uniform/discLaw, or bind the strategy to a ` +
-        `reference law via its deriveFrom option (design.md, "Sizing rules in code").`,
-    );
-  }
-  if (p.gamma !== gamma || p.delta !== delta) {
-    throw new Error(
-      `${strategy}: cutoff derivation holds for (γ, δ) = (${gamma}, ${delta}), ` +
-        `got (${p.gamma}, ${p.delta}). Generalizing the derivation is queued ` +
-        `design work; to draw this law over the reference population, pass the ` +
-        `reference rule as the strategy's deriveFrom option.`,
-    );
-  }
-  return p;
 }

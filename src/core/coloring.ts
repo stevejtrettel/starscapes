@@ -3,14 +3,15 @@
  * "Coloring rules in code", settled 2026-07-06).
  *
  * A coloring rule maps a root's row to r, g, b — a function per root of
- * the data on that root, same input as sizing rules and filters. Like
+ * the data on that root, same input as sizing rules; polynomial-level
+ * facts are reached through the back-reference (row.poly.disc). Like
  * sizing, a rule is an always-callable function plus OPTIONAL declared
  * structure, and the structure is what legends and HUDs derive from:
  *
  *   `classes` + `palette` — the rule is a CLASSIFICATION (the common
  *     case): classify(row) picks a code, palette maps code → color. The
  *     classification declares its WHOLE domain (an explicit "reducible"
- *     class rather than assuming an irreducibleOnly filter upstream); a
+ *     class rather than assuming the sentence filtered reducibles); a
  *     class the picture filters away simply never appears.
  *
  *   `scalar { label, domain, transform }` — the rule is a ramp over a
@@ -25,7 +26,7 @@
  * fully drawable, nothing derivable.
  */
 import { isPerfectSquare } from "./invariants.ts";
-import type { RootRow } from "./style.ts";
+import type { RootRow } from "./rows.ts";
 
 export type Rgb = readonly [number, number, number];
 
@@ -154,20 +155,21 @@ const GALOIS_PALETTE: readonly Rgb[] = [
  *     rational — root, so it lands in "reducible" via row.irreducible.
  *
  * The "reducible" class is part of the declared domain: pair with
- * irreducibleOnly if you don't want it drawn, and it never appears.
+ * an `if (!poly.irreducible) return` in the sentence if you don't want it
+ * drawn, and it never appears.
  */
 export function byGaloisGroup(degree: 2 | 3, palette?: readonly Rgb[]): ColoringRule {
   if (degree === 2) {
     return byClass({
       classes: ["reducible", "C₂"],
       palette: palette ?? [GALOIS_PALETTE[0], GALOIS_PALETTE[2]],
-      classify: (row) => (row.irreducible ? 1 : 0),
+      classify: (row) => (row.poly.irreducible ? 1 : 0),
     });
   }
   return byClass({
     classes: ["reducible", "C₃", "S₃"],
     palette: palette ?? GALOIS_PALETTE,
-    classify: (row) => (row.irreducible ? (isPerfectSquare(row.disc) ? 1 : 2) : 0),
+    classify: (row) => (row.poly.irreducible ? (isPerfectSquare(row.poly.disc) ? 1 : 2) : 0),
   });
 }
 
@@ -178,7 +180,7 @@ export function byDiscSign(palette?: readonly Rgb[]): ColoringRule {
   return byClass({
     classes: ["Δ > 0", "Δ = 0", "Δ < 0"],
     palette: palette ?? GALOIS_PALETTE,
-    classify: (row) => (row.disc > 0 ? 0 : row.disc === 0 ? 1 : 2),
+    classify: (row) => (row.poly.disc > 0 ? 0 : row.poly.disc === 0 ? 1 : 2),
   });
 }
 
@@ -188,7 +190,7 @@ export function byHeight(
   domain: readonly [number, number],
   ramp: Ramp = lerpRamp([0.85, 0.85, 0.85], [0.05, 0.05, 0.05]),
 ): ColoringRule {
-  return byScalar({ label: "height", of: (row) => row.height, domain, transform: "log", ramp });
+  return byScalar({ label: "height", of: (row) => row.poly.height, domain, transform: "log", ramp });
 }
 
 /** Color by leading coefficient — depth, for the full lattice families. */
@@ -196,5 +198,5 @@ export function byLead(
   domain: readonly [number, number],
   ramp: Ramp = lerpRamp([0.85, 0.85, 0.85], [0.05, 0.05, 0.05]),
 ): ColoringRule {
-  return byScalar({ label: "leading coefficient", of: (row) => row.lead, domain, transform: "log", ramp });
+  return byScalar({ label: "leading coefficient", of: (row) => row.poly.lead, domain, transform: "log", ramp });
 }

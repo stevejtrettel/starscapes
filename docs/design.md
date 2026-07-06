@@ -189,6 +189,14 @@ which reproduces it deterministically at scale. The spec is the provenance,
 embedded in every output's metadata: prints are exactly reproducible, paper
 figures regenerate when revised.
 
+*(Evolved 2026-07-06, "sentences, not specs": the picture is now a `Picture`
+FUNCTION in a demo/print file — code under git, not a data document. What
+stays serializable data is exactly what crosses threads and sessions: the
+camera (window/height) plus any demo dials. The explore → print handshake
+becomes "copy the camera into a print script that shares the demo's Picture";
+provenance = the script file + `Collection.describe()` in the output's
+metadata. The reproducibility promise is unchanged — it is now git's.)*
+
 **Iterating on a print reuses the solved harvest.** When a new spec differs
 from a previous run only in style/tone, the system reuses that run's solved,
 invariant-decorated root set and recomputes only style → splat — restyling a
@@ -328,7 +336,7 @@ contract in the codebase).
 
 ---
 
-## Level 3 — Search strategies in code (settled 2026-07-05)
+## Level 3 — Search strategies in code (settled 2026-07-05, SUPERSEDED 2026-07-06 by "The collection model" below)
 
 Sampling is first-class: two types split *how we choose* from *what got
 chosen*.
@@ -349,7 +357,11 @@ chosen*.
 - **ViewContext carries the style's size scale**, not just the window:
   derived depth is style-dependent through visibility. This is the design's
   own statement that populations like Φ_visible are view- AND
-  style-dependent — a real coupling, not a leak.
+  style-dependent — a real coupling, not a leak. *(Amended 2026-07-06,
+  then superseded the same day by "The collection model": the coupling
+  belongs to Φ_visible's DEFINITION only — the demo computes the depth from
+  the law's constant and hands search a plain number; ViewContext itself is
+  deleted with the SearchStrategy type.)*
 - **The interface is family-generic; implementations are per-family
   derivations** (derivations over mechanisms). A family joins the backward
   mode the way monic cubics did: slicing derivation in a doc, enumerator,
@@ -360,7 +372,118 @@ chosen*.
   into the strategies, in core, cited to their doc sections); the ray/tube
   harvest stays the shader-mode reference, not wrapped in v1.
 
-## Level 3 — Sizing rules in code (settled 2026-07-06)
+### Search and style are orthogonal; visibility is the only bridge (settled 2026-07-06)
+
+The population contract (which finite set of polynomials) and the style (how
+each dot is sized and colored) are **independent pillars**. The strategy↔law
+coupling that earlier framing worried over is not a property of backward
+search or of the interface — it belongs to **exactly one contract**, Φ_visible,
+whose *definition* is written in dot size ("visible" = dot ≥ a pixel = a
+statement about the sizing law). Every other contract is style-blind:
+
+- **Φ_disc(D)** — `|disc| ≤ D`, SL₂(ℤ)-invariant arithmetic truncation.
+- **Φ_height(H)**, **Φ_box(B)** — coefficient-space bounds.
+- **Φ_visible(law)** — the lone size-law-reading contract. *(Amended
+  2026-07-06, "The collection model": the law never enters the search code
+  even here — the DEMO computes the visible depth from the law's constant
+  via a named, documented function (`visibleDepthQuadratics(c, px)`) and
+  hands the collection the resulting number. The contract's definition
+  still reads dot size; its implementation reads only arithmetic.)*
+  `deriveFrom` is deleted — a comparison figure (draw law X over a
+  Φ_visible(classic) population) is now just two visible values in the
+  demo.
+
+Consequence for the interface: a `SearchStrategy` is a family + a population
+contract; `populationFor(view)` lets view-independent contracts ignore the
+view and lets Φ_visible read it. Only Φ_visible ever touches a sizing law.
+
+**Finiteness lives in the contract; further membership may live in either
+place.** A contract MUST supply the bound that makes its population finite and
+enumerable — this is what a strategy fundamentally is. For a backward
+population, a root in the window pins only two real coordinates; the remaining
+free directions (depth / cofactor / height) are unbounded, so finiteness must
+come from a genuine bound on *those* (a depth cutoff, `|disc| ≤ D`, a height
+bound, or visibility) — never from bounding one coefficient while others stay
+free. Predicates *beyond* finiteness may sit in the contract (named,
+provenance-carrying, smaller harvest, exploitable by the enumerator) OR as a
+draw-time `if` (post-solve, simplest). A cheap coefficient-only restriction
+is naturally a draw `if`; a predicate that *is* the picture's identity earns a
+named contract. Same logic as the retired filter-hoisting, now an author
+choice made visible in the sentence.
+
+## Level 3 — The collection model (settled 2026-07-06)
+
+*The confusion cleared. Search and styling are not coupled pillars that
+negotiate; there are three plain stages, and the middle one works entirely
+in coefficient space. This supersedes the SearchStrategy/Population two-type
+split, `ViewContext.sizing`, `requirePower`, `deriveFrom`, `SizingStructure`,
+and the whole "the strategy pulls the law / Option A" apparatus. The sizing
+library (powerLaw/classic/uniform/discLaw, cap-in-size) and the search
+enumerators (coneQuadratics, coneMonicCubics, the box) all survive — only the
+coupling machinery between them is deleted.*
+
+**Three stages: family → collection → solve + style.**
+
+- A **Collection** turns a family into a finite bag of polynomials *to solve*.
+  It is **coefficient-space and pre-solve**: it decides membership from what
+  is known before solving — coefficients, and quantities algebraic in them
+  (disc, height, the cofactor's real root `r = −b − 2s`). It never sees a
+  solved root, and it never sees a sizing law.
+  ```ts
+  interface Collection {
+    readonly family: Family;
+    collect(onBatch: BatchSink): number;   // stream coefficient batches
+    describe(): string;                     // provenance for artifacts
+    readonly coverage: "proved" | "heuristic";
+  }
+  ```
+- **Forward** = a coefficient-space **region**; enumerate the family's lattice
+  points inside it. View-independent. (`box`.)
+- **Backward** = a **window** (pins the complex pair's `s, y`) + a **stop
+  cutoff**; march coefficient slices outward to the cutoff. Over-collect,
+  then solve + apply exact membership downstream (the house pattern).
+  (`coneQuadratics`, `coneMonicCubics`.)
+
+**The stop cutoff is a plain value the demo computes — never a law handed to
+search.** For visibility it is a number derived from the sizing constant and
+the pixel size, with no solving, because the disc identities make the dot's
+size-at-depth a coefficient-space quantity:
+
+- quadratics: world radius `c/2a` ⟹ visible depth `aMax = c/(2·pixel)`;
+- monic cubics: world radius `c/(2·q(r))`, `q(r) = (r−s)²+y²` ⟹ reach
+  `ρ = √(c/(2·pixel))` on `|r − s|`, and `r = −b − 2s` is algebraic in the
+  marched coefficients (monic-cubic-sampling.md §3).
+
+So a sizing law answers **two separate questions**: `size(row)` — how big is
+*this solved dot* (root-space, used in `draw`) — and a coefficient-space
+**reach/depth at a given pixel size** (used by the demo to build the stop).
+The demo writes the stop with the second and hands the collection a number:
+
+```ts
+collection: viewConeQuadratics({
+  window: view.window,
+  aMax: visibleDepthQuadratics(c, view.worldPerPixel), // named, documented derivation
+  pad: c / 2,                                          // escape pad = biggest dot
+}),
+// or, style-free, the same march with a different cutoff (future constructor):
+collection: viewConeQuadratics({ window: view.window, stop: toDisc(20) }),
+```
+
+**A stop is a criterion, not necessarily a single number** — `toDepth(A)` is
+the trivial constant; `toDisc(D)` stops the march once no deeper slice can
+hold `|disc| ≤ D`; other coefficient-space criteria are functions of the
+march frontier. All are style-blind unless the demo chooses to build one from
+a law's reach.
+
+**Coefficient-space is the standing assumption.** Conditions that genuinely
+need solved roots (Pisot; a sizing whose size-at-depth is *not* recoverable
+from coefficients) are **explicitly not designed for now** — if a real one
+arrives, revisit the architecture then, with the example in hand. Quadratics
+and monic cubics both sit on the coefficient-space side (the cubic via the
+cofactor form making the real root algebraic), so nothing forces the change
+yet: the cubic is evidence *for* this model, not an exception to it.
+
+## Level 3 — Sizing rules in code (settled 2026-07-06; coupling parts superseded by "The collection model")
 
 Styling's size half becomes a pillar like search: an interface, a named
 library, and arbitrary hand-written rules staying first-class. Power laws
@@ -397,6 +520,13 @@ requirements* of the pillar.
   to an opaque rule fails loudly at bind time. Opaque rules remain fully
   usable with forward searches and structure-free strategies.
   `Population.describe()` keeps freezing the derived cutoffs into artifacts.
+  *(SUPERSEDED 2026-07-06 by "The collection model": no law reaches search
+  at all — the demo computes the cutoff from a named depth-law function and
+  hands the collection a plain number. `requirePower`, `deriveFrom`, and the
+  declared `power` structure itself are deleted (zero consumers remain); the
+  f′ form survives as the documented coordinate system of the named
+  constructors, and `Collection.describe()` still freezes derived cutoffs
+  into artifacts.)*
 - **Placement of existing code** (executed 2026-07-06, pixel-equivalence
   verified bit-identical on first-light, quadratics-cone, monic-cubics-cone)
   — every law in the pre-refactor repo was a lattice point of the f′ form,
@@ -461,6 +591,171 @@ The color half of a style, completing the styling pillar beside sizing.
   itself a new picture. Galois color becomes many-toned at degree 4
   (complex pairs across S₄/A₄/D₄/C₄/V₄) or in real-root pictures
   (cap: Infinity, δ = 0 laws).
+
+## Level 3 — The authoring surface: sentences, not specs (settled 2026-07-06; EXECUTED 2026-07-06, all five phases — bit-identical on the 7-render gate, old apparatus deleted)
+
+*Supersedes, at the surface only: `Style { sizing, coloring }` + `RootFilter`
+lists as the pipeline contract, and ViewContext carrying sizing. The
+vocabulary (sizing laws, coloring rules, filters as predicates) survives as
+VALUES; the mathematics beneath (strategies, solvers, laws, raster) is
+untouched. Decided after Steve rejected two spec-object designs: a config
+object chops the mathematician's sentence into labeled slots. The surface
+is the sentence.*
+
+**The contract** *(amended 2026-07-06 to the collection model + the refactor
+review's decisions)*. An author writes ONE per-*polynomial* function;
+everything they are doing is visible as code:
+
+```ts
+interface Scene {
+  collection: Collection;
+  /** The sentence: for each POLYNOMIAL, loop its roots and emit zero or
+   *  more dots. Per-polynomial filters are ifs BEFORE the loop (decided
+   *  once); per-root filters and sizing live inside. Laws and colorings
+   *  are values used inside, never slots filled. */
+  draw(poly: PolyRow, dot: (at: RootRow, rWorld: number, r: number, g: number, b: number) => void): void;
+  /** Optional: the coloring rule, so print/HUD derive a legend. */
+  legend?: ColoringRule;
+}
+/** A picture is a Scene as a function of the view — so zoom laws (E9
+ *  constant ink) and depth derivations appear as visible formulas in the
+ *  demo, and print and live share one type: print calls picture(view)
+ *  once, live calls it per camera move. worldPerPixel is world units per
+ *  OUTPUT pixel (live: CSS px; print: image px), height = window.worldH
+ *  (redundant but readable in constant-ink formulas). */
+interface ViewInfo { window: Window; worldPerPixel: number; height: number }
+type Picture = (view: ViewInfo) => Scene;
+```
+
+The `dot` callback is five scalars (settled 2026-07-06): zero-allocation and
+trivial. A coloring rule is used with an author-owned scratch —
+`rule.color(root, rgb); dot(root, r, rgb[0], rgb[1], rgb[2])` — honest, visible
+ceremony; an overload can arrive with demand.
+
+- **Polynomial-subject, root-object (settled 2026-07-06).** The data has two
+  real granularities: polynomial-level facts shared by all d roots
+  (`irreducible`, `disc`, `height`, `galoisClass`, Pisot-ness, coeffs) and
+  root-level facts that differ across the roots (`re`/`im`, `multiplicity`,
+  `isReal`, and `|f′(z)|` — different at each root, so even f′-form sizing is
+  root-evaluated though its *law* is polynomial-level). The subject of the
+  sentence is the polynomial (matches Steve's own phrasing — *"for every f
+  with a root in W, if irreducible, draw a disk of radius r(f)"*): `PolyRow`
+  carries `.roots: RootRow[]` plus the polynomial-level columns; the author
+  loops `poly.roots` explicitly. This makes the two granularities
+  syntactically distinct (`poly.X` outside the loop, `root.X` inside),
+  decides polynomial facts once (no once-per-root-and-cache trick, no RootRow
+  flattening), and makes the hard cases trivial: "drop the whole polynomial"
+  is a `return` before the loop, whole-root-set conditions (Pisot) read
+  `poly.roots` directly (no `siblings` column), zero-or-more dots per root is
+  how many times you call `dot`. `dot` takes the root it draws at (`at`), so
+  placement stays explicit. The two-line root loop is honest ceremony — it is
+  where the UHP conjugate-pair choice and root granularity actually live.
+- **A root reaches its polynomial by back-reference (settled 2026-07-06).**
+  `RootRow` carries `.poly: PolyRow`; laws and colorings that need
+  polynomial-level facts read them through it (`root.poly.disc`,
+  `root.poly.galoisClass`), while root-level facts stay direct (`root.im`,
+  `root.fprime`). One source of truth, single-arg `law.size(root)`,
+  granularity stays syntactically visible at the call site. Poly facts remain
+  *named columns* reached through `.poly`, never raw coefficient access.
+  Rejected: flattening poly columns onto the root (`root.disc`) — terser but
+  re-blurs the split and reinstates the copy-down the polynomial-subject form
+  removed.
+
+- **Stop cutoffs are computed in the demo, from named depth-law functions**
+  *(amended 2026-07-06, aligning with "The collection model" — supersedes the
+  earlier law-at-construction form of this bullet)*. The visibility
+  derivations become exported, documented functions beside their enumerators
+  — `visibleDepthQuadratics(c, worldPerPixel)` (live-sampling.md §2, dust ×3,
+  floor 5), `visibleReachMonicCubics(c, worldPerPixel, dustR)`
+  (monic-cubic-sampling.md §3, disc¼-form constant) — and collection
+  constructors take only plain derived numbers:
+  `viewConeQuadratics({ window, aMax, pad })`. No law object ever reaches
+  search; `requirePower` and `deriveFrom` are deleted (a comparison figure
+  derives `aMax` from law A's constant and draws with law B — two visible
+  values). The declared `power` structure on sizing rules is deleted with
+  its only consumer.
+- **A sizing rule owns its cap fully**: `law.size(row)` returns the FINAL
+  radius (NaN-safe min with cap·|y| inside the rule). No pass applies caps
+  behind the author's back. The pass still drops non-finite/≤ 0 radii
+  (multiple roots under uncapped laws). The house `DEFAULT_CAP = 0.5` stays
+  the constructors' documented default; `cap: Infinity` is the visible
+  opt-out.
+- **ALL derived columns go lazy** *(widened 2026-07-06 from
+  irreducible/fprime)*: `disc`, `height`, `coeffs`, `irreducible` on
+  `PolyRow` and `fprime` on `RootRow` are memoized getters computed on first
+  read, reset when the reused cursor advances — one uniform mental model (a
+  column is a memoized getter), and a solid-ink print never pays for
+  invariants it doesn't read. `poly.roots` is one reused array whose length
+  is set per polynomial (never sliced — no allocation).
+- **`explore` is the ten-line standard demo as a function** over five
+  public parts: `runRenderLoop` (worker half), `createDiskRenderer`,
+  `createRenderService` (generations + params payload), `attachPanZoom`,
+  HUD helpers. Parts contract (goes in conventions.md): *explore may only
+  contain code a demo could paste* — anything irreplaceable moves down
+  into a part. One shipped demo (the (γ, δ) law-browser, sliders, no
+  explore) is the permanent layering litmus.
+- **Worker mechanics** *(amended 2026-07-06: spawn factory, not URL string)*:
+  a demo is ONE module imported by both contexts; it passes explore a
+  factory containing the literal self-reference —
+  `spawn: () => new Worker(new URL("./main.ts", import.meta.url),
+  { type: "module" })` — the one pattern Vite's static analysis handles in
+  dev AND build (a URL passed as a runtime argument defeats it). Only plain
+  data (camera, generation, viewport) crosses; the picture lives in the
+  module, present on both sides.
+- **Print speaks the same grammar**: a pure `render(view, image, picture)`
+  (returns buffers — what comparison harnesses need) under
+  `print(name, { view, image, picture })`, the script harness owning clock +
+  stats + legend + outputs/ path; argv and sweeps stay ordinary script code
+  above. The inverse harvest gets a thin Collection wrapper (coverage
+  "heuristic") so `collection` is always a Collection.
+
+**The reference demo (the file this design exists to make possible):**
+
+```ts
+const HOME = { centerRe: 0, centerIm: 1.0, height: 2.4 };
+explore({
+  title: "monic cubics (irreducible, disc¼)",
+  home: HOME,
+  radiusCap: 0.5, // GL depth normalization; the laws own their own caps
+  spawn: () => new Worker(new URL("./main.ts", import.meta.url), { type: "module" }),
+  picture(view) {
+    const c = 0.03 * (view.height / HOME.height) ** (1 / 5);      // E9: constant ink
+    const law = discLaw({ alpha: 1 / 4, beta: 0, c, degree: 3 }); // uniformity locus
+    return {
+      collection: viewConeMonicCubics({
+        window: view.window,
+        rho: visibleReachMonicCubics(c, view.worldPerPixel, 4),   // §3, visible
+        pad: c,                                                   // escape pad
+      }),
+      draw(poly, dot) {
+        if (!poly.irreducible) return;          // per-poly, decided once
+        for (const root of poly.roots) {
+          if (root.im <= 0) continue;           // per-root: the UHP choice
+          dot(root, law.size(root), 0.05, 0.05, 0.05);
+        }
+      },
+    };
+  },
+});
+```
+
+**Build order (the v2 refactor plan, additive-then-delete so every phase ends
+green — tsc + biome + vitest, plus the render-diff pixel/time gate):**
+0. Baselines + this doc reconciled: 7 reference renders captured pre-refactor
+   with a manifest; `render-diff.ts` is the executable bit-identical gate.
+1. New core ADDITIVE (collection/rows/scene/drawPass + depth-law functions +
+   Collection constructors beside the old machinery); the one flip: cap moves
+   into `size()` and stylePass de-caps in the same commit (render-diff
+   validates through the old path). drawBatch ≡ styleBatch equivalence test.
+2. `render()`/`print()`; all print/experiment scripts rewritten as sentences;
+   renderPrint dies. Gate: 0 differing pixels, time within ~10%.
+3. Live parts extracted; `explore`; the two demos as sentence files;
+   law-browser litmus demo (no explore); `npm run build` + preview proves the
+   spawn factory.
+4. Delete the apparatus (SearchStrategy/Population/ViewContext, requirePower/
+   SizingStructure/power, deriveFrom, stylePass, Style/RootFilter/predicates);
+   rewrite the remaining tests; final render-diff.
+5. conventions.md gains the parts contract; README state refreshed.
 
 ## Level 3 — Code conventions (settled)
 

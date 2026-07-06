@@ -7,15 +7,26 @@
 import { describe, expect, it } from "vitest";
 import { byClass, byGaloisGroup, byScalar, lerpRamp, solid } from "../src/core/coloring.ts";
 import { cubicIrreducible, discriminant } from "../src/core/invariants.ts";
-import type { MutableRootRow } from "../src/core/style.ts";
+import type { PolyRow, RootRow } from "../src/core/rows.ts";
 
-const row = (fields: Partial<MutableRootRow>): MutableRootRow => ({
-  degree: 3, re: 0, im: 1, mult: 1, disc: 0, lead: 1, fprime: 1, height: 1, irreducible: true,
-  ...fields,
-});
+/** A hand-built root row (rules read poly facts through root.poly). */
+const row = (
+  fields: Partial<{ degree: number; disc: number; irreducible: boolean; height: number; lead: number; im: number; fprime: number }> = {},
+): RootRow => {
+  const poly = {
+    degree: fields.degree ?? 3,
+    lead: fields.lead ?? 1,
+    coeffs: new Float64Array(0),
+    disc: fields.disc ?? 0,
+    height: fields.height ?? 1,
+    irreducible: fields.irreducible ?? true,
+    roots: [],
+  } as unknown as PolyRow;
+  return { re: 0, im: fields.im ?? 1, mult: 1, fprime: fields.fprime ?? 1, poly };
+};
 
 const out = new Float64Array(3);
-const classOf = (rule: ReturnType<typeof byGaloisGroup>, r: MutableRootRow): string => {
+const classOf = (rule: ReturnType<typeof byGaloisGroup>, r: RootRow): string => {
   rule.color(r, out);
   const k = rule.palette?.findIndex((p) => p[0] === out[0] && p[1] === out[1] && p[2] === out[2]);
   return rule.classes?.[k ?? -1] ?? "?";
@@ -98,7 +109,7 @@ describe("declared structure, loudly checked", () => {
 describe("byScalar declared domains", () => {
   const bw = byScalar({
     label: "height",
-    of: (r) => r.height,
+    of: (r) => r.poly.height,
     domain: [1, 100],
     transform: "log",
     ramp: lerpRamp([1, 1, 1], [0, 0, 0]),

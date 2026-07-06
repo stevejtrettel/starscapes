@@ -6,14 +6,13 @@
  * rate — design.md, inverse sampler mathematics), and renders both images.
  */
 
-import { solid } from "../../src/core/coloring.ts";
+import type { Collection } from "../../src/core/collection.ts";
 import { integerPolynomials } from "../../src/core/family/lattice.ts";
-import { box, enumerateBox } from "../../src/core/search/forward.ts";
-import { harvestQuadratics, inverse } from "../../src/core/search/inverse.ts";
+import { box, enumerateBox, forwardBox } from "../../src/core/search/forward.ts";
+import { harvestQuadratics, inverse, inverseQuadratics } from "../../src/core/search/inverse.ts";
 import { classic } from "../../src/core/sizing.ts";
-import { type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
-import { renderPrint } from "../../src/pipeline/print.ts";
+import { render } from "../../src/pipeline/render.ts";
 
 const BOUND = 40;
 const A_MAX = 40;
@@ -84,19 +83,25 @@ if (missedDiscs.length > 0) {
 }
 
 // --- Render both for the eyeball diff -------------------------------------
-const style: Style = {
-  sizing: classic(0.035),
-  coloring: solid(0.05, 0.05, 0.05),
-};
-for (const [name, search] of [
-  ["forward", box(BOUND)],
-  ["inverse", inverse({ aMax: A_MAX, epsilon: EPSILON })],
-] as const) {
-  const result = renderPrint({
-    family, search, filters: [upperHalfPlane], style,
-    view: { center: [...view.center], height: view.height },
-    image: { width: SIZE, compositing: "opaque" },
-  });
+const law = classic(0.035);
+const collections: Array<[string, (w: typeof window) => Collection]> = [
+  ["forward", () => forwardBox(family, BOUND)],
+  ["inverse", (w) => inverseQuadratics(inverse({ aMax: A_MAX, epsilon: EPSILON }), w, SIZE, SIZE)],
+];
+for (const [name, collectionFor] of collections) {
+  const result = render(
+    { center: [...view.center], height: view.height },
+    { width: SIZE, compositing: "opaque" },
+    (v) => ({
+      collection: collectionFor(v.window),
+      draw(poly, dot) {
+        for (const root of poly.roots) {
+          if (root.im <= 0) continue;
+          dot(root, law.size(root), 0.05, 0.05, 0.05);
+        }
+      },
+    }),
+  );
   writePng(`outputs/parity-${name}.png`, result.rgb, result.width, result.height);
   console.log(`parity-${name}.png: ${result.stats.polynomials} polys, ${result.stats.drawn} drawn`);
 }

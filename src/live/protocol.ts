@@ -1,21 +1,20 @@
 /**
  * Main-thread ↔ render-worker protocol. Requests carry a generation number;
  * the worker streams instance chunks tagged with it and abandons work the
- * moment a newer generation arrives. All picture parameters cross as plain
- * data (workers can't receive closures — style here is the named preset's
- * parameters).
+ * moment a newer generation arrives. Only PLAIN DATA crosses: the camera,
+ * the viewport, and optional demo params — the Picture itself lives in the
+ * demo module, which both contexts import (explore.ts self-spawns it).
  */
-
-export type LiveFamily = "quadratic" | "monicCubic";
 
 export interface RenderRequest {
   type: "render";
   generation: number;
-  family: LiveFamily;
   view: { centerRe: number; centerIm: number; height: number };
   viewportW: number;
   viewportH: number;
-  style: { sizeScale: number; radiusCap: number };
+  /** Demo-specific plain data (slider values, dials) — handed to the
+   *  picture as its second argument. Structured-cloneable only. */
+  params?: unknown;
 }
 
 export interface ChunkMessage {
@@ -35,8 +34,8 @@ export interface DoneMessage {
   type: "done";
   generation: number;
   polynomials: number;
-  /** The bound population's provenance, e.g. "Φ_cone(W, A = 812)" —
-   *  Population.describe() with the derived cutoffs frozen in. */
+  /** The bound collection's provenance, e.g. "Φ_cone(W, A = 812)" —
+   *  Collection.describe() with the derived cutoffs frozen in. */
   population: string;
   ms: number;
 }

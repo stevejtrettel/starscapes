@@ -5,16 +5,14 @@
  * Usage: node cap-off.ts [W_PX]
  */
 
-import { solid } from "../../src/core/coloring.ts";
-import { viewConeQuadratics } from "../../src/core/search/cone.ts";
-import { viewConeMonicCubics } from "../../src/core/search/coneMonicCubic.ts";
+import type { Picture } from "../../src/core/scene.ts";
+import { viewConeQuadratics, visibleDepthQuadratics } from "../../src/core/search/cone.ts";
+import { viewConeMonicCubics, visibleReachMonicCubics } from "../../src/core/search/coneMonicCubic.ts";
 import { classic, discLaw } from "../../src/core/sizing.ts";
-import { irreducibleOnly, type RootFilter, type Style, upperHalfPlane } from "../../src/core/style.ts";
 import { writePng } from "../../src/offline/png.ts";
-import { type PrintSpec, renderPrint } from "../../src/pipeline/print.ts";
+import { render, type View } from "../../src/pipeline/render.ts";
 
 const W_PX = Number(process.argv[2] ?? 1600);
-const INK = solid(0.05, 0.05, 0.05);
 
 function changedPixels(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
   let n = 0;
@@ -26,30 +24,52 @@ function changedPixels(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
 
 interface Case {
   name: string;
-  /** Style at the given cap (∞ = cap off). */
-  styleAt(cap: number): Style;
-  search: PrintSpec["search"];
-  filters: RootFilter[];
-  view: PrintSpec["view"];
+  /** The picture at the given cap (∞ = cap off). */
+  pictureAt(cap: number): Picture;
+  view: View;
 }
 
 const CASES: Case[] = [
   {
     name: "quad-classic-0.035",
-    styleAt: (cap) => ({ sizing: classic(0.035, { cap }), coloring: INK }),
-    search: viewConeQuadratics(),
-    filters: [upperHalfPlane],
     view: { center: [0, 1.1], height: 2.6 },
+    pictureAt: (cap) => (view) => {
+      const law = classic(0.035, { cap });
+      return {
+        collection: viewConeQuadratics({
+          window: view.window,
+          aMax: visibleDepthQuadratics(0.035, view.worldPerPixel),
+          pad: 0.035 / 2,
+        }),
+        draw(poly, dot) {
+          for (const root of poly.roots) {
+            if (root.im <= 0) continue;
+            dot(root, law.size(root), 0.05, 0.05, 0.05);
+          }
+        },
+      };
+    },
   },
   {
     name: "cubic-disc4-0.03",
-    styleAt: (cap) => ({
-      sizing: discLaw({ alpha: 0.25, beta: 0, c: 0.03, degree: 3, cap }),
-      coloring: INK,
-    }),
-    search: viewConeMonicCubics({ dustR: 4 }),
-    filters: [upperHalfPlane, irreducibleOnly],
     view: { center: [0, 1.0], height: 2.4 },
+    pictureAt: (cap) => (view) => {
+      const law = discLaw({ alpha: 0.25, beta: 0, c: 0.03, degree: 3, cap });
+      return {
+        collection: viewConeMonicCubics({
+          window: view.window,
+          rho: visibleReachMonicCubics(0.03, view.worldPerPixel, 4),
+          pad: 0.03,
+        }),
+        draw(poly, dot) {
+          if (!poly.irreducible) return;
+          for (const root of poly.roots) {
+            if (root.im <= 0) continue;
+            dot(root, law.size(root), 0.05, 0.05, 0.05);
+          }
+        },
+      };
+    },
   },
 ];
 
@@ -57,13 +77,7 @@ for (const c of CASES) {
   const images: Record<string, Uint8ClampedArray> = {};
   for (const [label, cap] of [["capped", 0.5], ["uncapped", Infinity]] as const) {
     const t0 = performance.now();
-    const result = renderPrint({
-      search: c.search,
-      filters: c.filters,
-      style: c.styleAt(cap),
-      view: c.view,
-      image: { width: W_PX, compositing: "opaque" },
-    });
+    const result = render(c.view, { width: W_PX, compositing: "opaque" }, c.pictureAt(cap));
     images[label] = result.rgb;
     const out = `outputs/e14-${c.name}-${label}.png`;
     writePng(out, result.rgb, result.width, result.height);

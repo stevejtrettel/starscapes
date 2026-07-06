@@ -8,8 +8,8 @@
  * `onBatch(coeffs, count)` with stride degree + 1, valid for the duration
  * of the callback only.
  */
+import type { Collection } from "../collection.ts";
 import type { Family } from "../family/types.ts";
-import type { Population, SearchStrategy } from "./types.ts";
 
 export interface BoxSearch {
   readonly kind: "box";
@@ -75,20 +75,16 @@ export function enumerateBox(
 }
 
 /**
- * The forward strategy: family ∩ box, everything plotted. Ignores the view
- * when binding — that is what "forward" means; the window only ever clips.
+ * The forward collection: family ∩ box, everything plotted. View-independent
+ * — that is what "forward" means; the window only ever clips.
  */
-export function forwardBox(family: Family, bound: number): SearchStrategy {
+export function forwardBox(family: Family, bound: number): Collection {
   const search = box(bound);
   return {
-    mode: "forward",
     family,
-    populationFor(): Population {
-      return {
-        describe: () => `Φ_box(|params| ≤ ${bound})`,
-        coverage: "proved", // enumerating a finite box is trivially complete
-        enumerate: (onBatch) => enumerateBox(family, search, onBatch),
-      };
-    },
+    describe: () => `Φ_box(|params| ≤ ${bound})`,
+    coverage: "proved", // enumerating a finite box is trivially complete
+    collect: (onBatch) => enumerateBox(family, search, onBatch),
   };
 }
+

@@ -57,6 +57,15 @@ amend the document when we amend the rules.*
 - Abstractions arrive with their second consumer, not before (no unified
   Solver interface, status flags, or bigint tier until their consumers
   exist).
+- **The parts contract (live layer, adopted 2026-07-06):** `explore` may
+  only contain code a demo could paste — anything irreplaceable moves down
+  into a part (`runRenderLoop`, `createDiskRenderer`, `createRenderService`,
+  `attachPanZoom`, `hudReadout`). The law-browser demo composes the parts
+  without `explore` and is the permanent layering litmus.
+- **A sizing rule owns its cap:** `law.size(row)` returns the FINAL radius,
+  cap applied NaN-safely inside the rule; no pass adjusts sizes behind the
+  author's back. The draw pass owns exactly one rule — non-finite/≤ 0
+  radii are dropped, never drawn.
 
 ## Research process (adopted 2026-07-04, after being earned the hard way)
 - **Experiments** (scripts, notebook): question → setup → PREDICTION

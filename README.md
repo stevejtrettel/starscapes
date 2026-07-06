@@ -33,16 +33,21 @@ Node runs the scripts natively. Everything generated lands in `outputs/`
 | `docs/experiments.md` | The lab notebook, E1–E12: every experiment with its prediction, result, and verdict — including the instructive failures. |
 | `docs/conventions.md` | The code charter and research-process rules. |
 | `shaders.tex` | The raymarching write-up behind the (future) shader mode. |
-| `src/core/` | Pure math, imports nothing: solvers, families, search, invariants, styles. |
-| `src/render/`, `src/offline/`, `src/pipeline/` | The offline rasterizer and print pipeline. |
-| `src/live/` | The explorer: camera, GL disks, render worker. |
-| `scripts/prints/` | One script per picture; `scripts/experiments/` mirrors the notebook. |
+| `src/core/` | Pure math, imports nothing: solvers, families, collections, invariants, laws, the row cursors and draw pass. |
+| `src/render/`, `src/offline/`, `src/pipeline/` | The offline rasterizer, the pure `render()`, and the `print()` harness. |
+| `src/live/` | The explorer parts: camera, GL disks, render loop/service, pan-zoom, HUD, `explore`. |
+| `scripts/prints/` | One sentence per picture; `scripts/experiments/` mirrors the notebook. |
+| `demos/` | Live sentences: `quadratics`, `monic-cubics` (via `explore`), `law-browser` (parts composed by hand, γ/δ/c sliders). |
 
-## State (2026-07-04)
+## State (2026-07-06)
 
-Quadratics end to end: tested core (closed-form solvers, exact
-discriminants), offline prints in seconds, live explorer with smooth
-constant-ink zoom to arbitrary depth. Next up, in `docs/design.md`'s
-build-order: the explorer's save-recipe button, cubics in the live view
-(each family gets its own small derivations — see live-sampling.md §5),
-and the march/shader mode.
+Quadratics and monic cubics end to end, now through the **collection
+model** (design.md Level 3): a picture is a demo or print script containing
+one `Picture` — a collection whose cutoffs are computed from named depth
+laws, plus one per-polynomial `draw` sentence with laws and colorings as
+values. The refactor that landed it was gated bit-identical
+(`scripts/experiments/render-diff.ts`: 7 reference renders, 0 differing
+pixels) and deleted the search↔styling coupling machinery
+(`ViewContext.sizing`, `requirePower`, `deriveFrom`, the strategy types).
+Next up, in `docs/design.md`'s build-order: the explorer's save handshake
+(camera → print script), and the march/shader mode.

@@ -12,16 +12,9 @@
  * member is not. Completeness argument: doc §1. No duplicates: d-ranges
  * from the ≤ 2 valid s-intervals are merged before emission.
  */
+import { type Collection, DUST_FACTOR } from "../collection.ts";
 import { monicPolynomials } from "../family/lattice.ts";
-import { requirePower, type SizingRule } from "../sizing.ts";
-import {
-  DUST_FACTOR,
-  fattenWindow,
-  type Population,
-  type SearchStrategy,
-  type ViewContext,
-  type Window,
-} from "./types.ts";
+import { fattenWindow, type Window } from "../window.ts";
 
 const EPS = 1e-9;
 
@@ -165,37 +158,37 @@ export function constantInkScaleMonicCubic(c0: number, h: number, homeH: number)
 }
 
 /**
- * The backward strategy for monic integer cubics: Φ₃ᵐᵒⁿ(W, ρ) with the
- * real-root reach ρ derived from visibility (docs/monic-cubic-sampling.md
- * §3). The derivation holds for the uniformity law (γ, δ) = (1, ½) —
- * pulled from the bound sizing rule per Option A (sizing.ts). The §3
- * formula ρ = R·√(3c/(2·worldPerPixel)) is stated in the disc¼-form
- * constant c_disc = c_f′/√2 (sizing.ts conversion identities), so the
- * pulled f′-form c converts before entering it; R is the dust dial. The
- * window is fattened by c_disc — generous vs the largest escaping dot
- * (labeled heuristic, matching the live worker's validated look).
- *
- * `deriveFrom` binds the cutoffs to a REFERENCE rule instead of the drawn
- * one — the explicit escape hatch for comparison prints.
+ * The visible reach for the uniformity law (γ, δ) = (1, ½),
+ * docs/monic-cubic-sampling.md §3: ρ = R·√(3c/(2·worldPerPixel)), stated in
+ * the DISC¼-FORM constant c (the dial the cubic demos turn; = c_f′/√2 by
+ * the sizing.ts conversion identities — passing the disc-form constant
+ * directly is bit-exact vs the old f′-form round trip, verified). R is the
+ * dust dial (population ∝ ρ³ makes dust cheap, §4). The demo computes this
+ * and hands viewConeMonicCubics the resulting number — no law ever enters
+ * search (design.md, "The collection model").
  */
-export function viewConeMonicCubics(
-  opts: { dustR?: number; deriveFrom?: SizingRule } = {},
-): SearchStrategy {
-  const dustR = opts.dustR ?? DEFAULT_DUST_R;
-  const family = monicPolynomials({ degree: 3 });
+export function visibleReachMonicCubics(
+  c: number, worldPerPixel: number, dustR: number = DEFAULT_DUST_R,
+): number {
+  return dustR * Math.sqrt((DUST_FACTOR * c) / (2 * worldPerPixel));
+}
+
+/**
+ * The backward collection for monic integer cubics: Φ₃ᵐᵒⁿ(W, ρ) — every
+ * monic integer cubic with its complex pair in the (pad-fattened) window
+ * and real root within ρ of it. The cutoffs are plain values the demo
+ * computes: ρ from a reach law (visibleReachMonicCubics for visibility) and
+ * pad from the largest escaping dot (c_disc, generous — labeled heuristic),
+ * both visible in the sentence.
+ */
+export function viewConeMonicCubics(opts: { window: Window; rho: number; pad?: number }): Collection {
+  const { rho } = opts;
+  const window = fattenWindow(opts.window, opts.pad ?? 0);
   return {
-    mode: "backward",
-    family,
-    populationFor(view: ViewContext): Population {
-      const sizing = opts.deriveFrom ?? view.sizing;
-      const c = requirePower(sizing, 1, 0.5, "viewConeMonicCubics").c / Math.SQRT2;
-      const rho = dustR * Math.sqrt((DUST_FACTOR * c) / (2 * view.worldPerPixel));
-      const window = fattenWindow(view.window, c);
-      return {
-        describe: () => `Φ₃ᵐᵒⁿ(W, ρ = ${rho.toFixed(1)})`,
-        coverage: "proved", // completeness by the §1 slicing argument (E13)
-        enumerate: (onBatch) => coneMonicCubics(window, rho, onBatch),
-      };
-    },
+    family: monicPolynomials({ degree: 3 }),
+    describe: () => `Φ₃ᵐᵒⁿ(W, ρ = ${rho.toFixed(1)})`,
+    coverage: "proved", // completeness by the §1 slicing argument (E13)
+    collect: (onBatch) => coneMonicCubics(window, rho, onBatch),
   };
 }
+

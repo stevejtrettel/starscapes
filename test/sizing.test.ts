@@ -2,18 +2,18 @@
  * Sizing rules (design.md Level 3 "Sizing rules in code"): the f′-form
  * power law against the mathematics it claims — fprimeAt against a direct
  * derivative evaluation, the discLaw conversion identities against the
- * disc-form originals they replace, and the style pass's NaN-safe cap
- * semantics. Property style, seeded LCG (conventions.md).
+ * disc-form originals they replace, and the law-owned NaN-safe cap
+ * semantics (cap lives INSIDE size). Property style, seeded LCG
+ * (conventions.md).
  */
 import { describe, expect, it } from "vitest";
 import { discriminant, fprimeAt } from "../src/core/invariants.ts";
 import { evalComplex } from "../src/core/polynomial.ts";
+import type { RootRow as SentenceRootRow } from "../src/core/rows.ts";
 import { classic, discLaw, powerLaw } from "../src/core/sizing.ts";
 import { solveCubicBatch } from "../src/core/solve/cubic.ts";
 import { solveQuadraticBatch } from "../src/core/solve/quadratic.ts";
 import { allocRootSlots } from "../src/core/solve/types.ts";
-import type { MutableRootRow, Style } from "../src/core/style.ts";
-import { styleBatch } from "../src/core/stylePass.ts";
 
 function lcg(seed: number): () => number {
   let s = seed >>> 0;
@@ -35,10 +35,9 @@ function fprimeDirect(coeffs: Float64Array, off: number, degree: number, re: num
   return Math.hypot(out[0], out[1]);
 }
 
-const row = (fields: Partial<MutableRootRow>): MutableRootRow => ({
-  degree: 2, re: 0, im: 0, mult: 1, disc: 0, lead: 1, fprime: 0, height: 0, irreducible: true,
-  ...fields,
-});
+// Laws read im/fprime only; the cast supplies the rest of the row shape.
+const row = (fields: { degree?: number; im?: number; fprime?: number }): SentenceRootRow =>
+  ({ re: 0, im: 0, mult: 1, fprime: 0, ...fields }) as unknown as SentenceRootRow;
 
 describe("fprimeAt", () => {
   it("≡ direct derivative evaluation at every root (quadratics and cubics)", () => {
@@ -126,31 +125,17 @@ describe("discLaw conversion identities", () => {
   });
 });
 
-describe("style pass cap semantics", () => {
-  const flat = (c: number, cap: number): Style => ({
-    sizing: powerLaw({ c, gamma: 1, delta: 0, cap }),
-    coloring: {
-      color: (_r, out) => {
-        out.fill(0);
-      },
-    },
-  });
-  const collect = (coeffs: Float64Array, style: Style) => {
-    const slots = allocRootSlots(1, 2);
-    solveQuadraticBatch(coeffs, 1, slots);
-    const dots: number[] = [];
-    styleBatch(coeffs, 1, 2, slots, [], style, (_re, _im, r) => dots.push(r));
-    return dots;
-  };
+describe("cap semantics — the law owns its cap (inside size)", () => {
+  const flat = (c: number, cap: number) => powerLaw({ c, gamma: 1, delta: 0, cap });
 
-  it("a finite hyperbolic cap zeroes real-axis dots; cap: Infinity draws them", () => {
-    const xSquaredMinus1 = new Float64Array([-1, 0, 1]); // roots ±1, f′ = ±2
-    expect(collect(xSquaredMinus1, flat(0.02, 0.5))).toEqual([]);
-    expect(collect(xSquaredMinus1, flat(0.02, Infinity))).toEqual([0.01, 0.01]);
+  it("a finite hyperbolic cap zeroes real-axis dots; cap: Infinity keeps the law", () => {
+    // A real root of x² − 1: y = 0, |f′| = 2.
+    expect(flat(0.02, 0.5).size(row({ im: 0, fprime: 2 }))).toBe(0);
+    expect(flat(0.02, Infinity).size(row({ im: 0, fprime: 2 }))).toBe(0.01);
   });
 
-  it("a multiple root under an uncapped law (radius → ∞) is dropped, not drawn", () => {
-    const xSquared = new Float64Array([0, 0, 1]);
-    expect(collect(xSquared, flat(0.02, Infinity))).toEqual([]);
+  it("a multiple root under an uncapped law sizes to ∞ — the draw pass drops it", () => {
+    // (x−1)²: |f′| = 0 exactly, y = 0 — Infinity·0 = NaN must not cap.
+    expect(flat(0.02, Infinity).size(row({ im: 0, fprime: 0 }))).toBe(Infinity);
   });
 });

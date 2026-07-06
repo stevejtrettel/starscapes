@@ -14,10 +14,9 @@
  * `fixed-ε` baseline (design.md: the nearness criterion is an experimental
  * surface).
  */
-import type { Window } from "./types.ts";
-
-// Window's home is now types.ts; re-exported here for older importers.
-export type { Window } from "./types.ts";
+import type { Collection } from "../collection.ts";
+import { integerPolynomials } from "../family/lattice.ts";
+import type { Window } from "../window.ts";
 
 export interface InverseSearch {
   readonly kind: "inverse";
@@ -49,6 +48,24 @@ export function inverse(opts: {
   };
 }
 
+
+/**
+ * The inverse collection: the ray/tube harvest bagged for the sentence
+ * surface. Coverage is "heuristic" by definition — fixed-ε is the
+ * experimental baseline criterion (design.md), not a proved plan.
+ */
+export function inverseQuadratics(
+  search: InverseSearch, window: Window, seedsX: number, seedsY: number,
+): Collection {
+  return {
+    family: integerPolynomials({ degree: 2 }),
+    describe: () =>
+      `Φ_inv(${search.criterion}, ε = ${search.epsilon}, A ≤ ${search.aMax}` +
+      `${search.adaptiveDepth !== undefined ? `, D = ${search.adaptiveDepth}` : ""})`,
+    coverage: "heuristic",
+    collect: (onBatch) => harvestQuadratics(search, window, seedsX, seedsY, onBatch),
+  };
+}
 
 /**
  * Harvest over a seedsX × seedsY grid of trace points (one per output pixel
