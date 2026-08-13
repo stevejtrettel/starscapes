@@ -25,3 +25,8 @@ dist-ssr
 
 # Generated artifacts: prints, caches, presets — regenerable from specs
 outputs/
+
+# GitHub Pages build (scripts/build-all.mjs)
+dist-pages
+demos/*/index.html
+demos/__pages

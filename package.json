@@ -5,8 +5,9 @@
   "type": "module",
   "description": "Algebraic starscapes: roots of polynomial families in the complex plane",
   "scripts": {
+    "build:all": "node scripts/build-all.mjs",
     "dev": "node scripts/run-demo.ts",
-    "build": "vite build --base=./",
+    "build": "node scripts/build.ts",
     "preview": "vite preview",
     "typecheck": "tsc",
     "lint": "biome check .",
