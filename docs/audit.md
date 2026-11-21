@@ -153,3 +153,8 @@ theorems.
   curve is tangent to an edge. Shell membership is now decided on
   integers where it can be, tangencies are counted, and a test checks
   that a catalogue does not depend on how its window is cut.
+- **Enumeration by lattice reduction** (`src/lattice/`): the polynomials
+  of a ball or box with a root in a small window, as the short vectors of
+  a lattice (exact LLL, then Fincke–Pohst). Cost independent of the size
+  of the box; degree 8 becomes explorable. With it, the **ball** family
+  Σ aₖ² ≤ R².

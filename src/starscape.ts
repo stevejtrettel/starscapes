@@ -6,7 +6,7 @@
  * two things a renderer needs: the catalogue of stars at least a given
  * size, and the size of each.
  */
-import { box } from "./catalogue/box.ts";
+import { ball, box } from "./catalogue/box.ts";
 import { cubics } from "./catalogue/cubics.ts";
 import { plane } from "./catalogue/plane.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
@@ -20,6 +20,8 @@ export type Family =
   | { readonly kind: "cubics"; readonly monic: boolean }
   /** Degree d, coefficients in [−H, H]. */
   | { readonly kind: "box"; readonly degree: number; readonly height: number; readonly monic: boolean }
+  /** Degree d, Σ a_k² ≤ radius². */
+  | { readonly kind: "ball"; readonly degree: number; readonly radius: number; readonly monic: boolean }
   /** The integer plane aP + bQ + cR with a in the given range and |b|, |c| ≤ height. */
   | {
       readonly kind: "plane";
@@ -96,6 +98,8 @@ export function starscape(spec: StarscapeSpec): Starscape {
       };
     case "box":
       return finite(family.degree, box(family.degree, family.height, { monic: family.monic }));
+    case "ball":
+      return finite(family.degree, ball(family.degree, family.radius, { monic: family.monic }));
     case "plane":
       return finite(family.basis[0].length - 1, plane({ basis: family.basis, a: family.a, H: family.height }));
     default: {

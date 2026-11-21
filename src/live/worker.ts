@@ -71,16 +71,17 @@ async function render(request: RenderRequest): Promise<void> {
   };
 
   // Largest stars first; a newer request supersedes this one between steps.
-  // For a finite family the margin is capped at half the view: its
-  // catalogue has no size structure to exploit, and without the cap a deep
-  // zoom would enumerate everything within the largest conceivable radius.
   const W = windowOf(view, request.viewportW / request.viewportH);
-  const maxMargin = scape.population === null ? view.height / 2 : Infinity;
-  for (const step of plan(scape, W, pixel, recipe.faintest, maxMargin)) {
-    scape.stars(step.rMin, step.rMax)(step.window, send);
-    flush();
-    await breathe();
-    if (pending) return;
+  let error: string | undefined;
+  try {
+    for (const step of plan(scape, W, pixel, recipe.faintest)) {
+      scape.stars(step.rMin, step.rMax)(step.window, send);
+      flush();
+      await breathe();
+      if (pending) return;
+    }
+  } catch (reason) {
+    error = reason instanceof Error ? reason.message : String(reason);
   }
 
   const done: DoneMessage = {
@@ -88,6 +89,7 @@ async function render(request: RenderRequest): Promise<void> {
     generation: request.generation,
     stars,
     milliseconds: performance.now() - started,
+    ...(error === undefined ? {} : { error }),
   };
   self.postMessage(done);
 }

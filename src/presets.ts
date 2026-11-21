@@ -79,6 +79,16 @@ export const PRESETS = {
     SQUARE,
   ),
 
+  // High degree is only drawable zoomed in — a wide view of this family
+  // holds about 10¹¹ stars — so the home view is a window a thousandth of
+  // a unit across, enumerated by the lattice method.
+  "sextics-deep": preset(
+    "sextics with ‖f‖₂ ≤ 30, deep",
+    { family: { kind: "ball", degree: 6, radius: 30, monic: false }, law: hyperbolic(5e-5, 1) },
+    { centre: [0.3137, 0.8721], height: 1.2e-3 },
+    { colouring: "leading" },
+  ),
+
   // The planar family of Harriss–Stange–Trettel, Figure 1b.
   "cubic-plane": preset(
     "ax³ + cx² + bx + c",

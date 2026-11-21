@@ -44,7 +44,9 @@ export function startExplorer(
       renderer.begin(anchor);
     }
     if (message.type === "chunk") renderer.append(message.discs, message.count);
-    else status = `${message.stars.toLocaleString()} stars · ${message.milliseconds.toFixed(0)} ms`;
+    else {
+      status = message.error ?? `${message.stars.toLocaleString()} stars · ${message.milliseconds.toFixed(0)} ms`;
+    }
     needsPaint = true;
   };
 

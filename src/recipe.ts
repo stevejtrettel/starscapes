@@ -89,6 +89,9 @@ export function parseRecipe(value: unknown): Recipe {
     case "box":
       family = { kind: "box", degree: integer(f.degree, "degree"), height: integer(f.height, "height"), monic: f.monic === true };
       break;
+    case "ball":
+      family = { kind: "ball", degree: integer(f.degree, "degree"), radius: number(f.radius, "radius"), monic: f.monic === true };
+      break;
     case "plane": {
       const basis = Array.isArray(f.basis) && f.basis.length === 3 ? f.basis : fail("basis is not three polynomials");
       const a = integers(f.a, "a");

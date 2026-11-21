@@ -34,6 +34,8 @@ export interface DoneMessage {
   readonly generation: number;
   readonly stars: number;
   readonly milliseconds: number;
+  /** Set when the catalogue refused the view (e.g. too many stars to enumerate). */
+  readonly error?: string;
 }
 
 export type WorkerMessage = ChunkMessage | DoneMessage;

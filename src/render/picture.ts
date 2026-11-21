@@ -60,15 +60,22 @@ export interface Step {
  * since the population grows like a power of 1/r.
  *
  * Windows stay half a pixel above the real axis: below that nothing is
- * resolvable, and a catalogue may be infinite there. `maxMargin` caps the
- * margin; discs centred farther outside are then not drawn.
+ * resolvable, and a catalogue may be infinite there.
+ *
+ * A finite family (a box, a ball, a plane) has no such structure: its
+ * catalogue is enumerated whole whatever the radii, and the only general
+ * bound on a radius is the cap. For these the margin is limited to half
+ * the height of W — a disc centred farther outside is not drawn — since
+ * otherwise a deep zoom would enumerate everything within the largest
+ * conceivable radius of the view.
  */
-export function plan(scape: Starscape, W: Window, pixel: number, faintest: number, maxMargin = Infinity): Step[] {
+export function plan(scape: Starscape, W: Window, pixel: number, faintest: number): Step[] {
   const rMin = faintest * pixel;
   // The largest radius of any star whose disc meets W: r ≤ radiusBound(y) at height y ≤ y₁ + r.
   let largest = scape.radiusBound(W.y1);
   largest = 1.01 * scape.radiusBound(W.y1 + largest);
 
+  const maxMargin = scape.population === null ? (W.y1 - W.y0) / 2 : Infinity;
   const step = (lo: number, hi: number): Step => {
     const margin = Math.min(hi, largest, maxMargin);
     return {
@@ -77,7 +84,6 @@ export function plan(scape: Starscape, W: Window, pixel: number, faintest: numbe
       window: { s0: W.s0 - margin, s1: W.s1 + margin, y0: Math.max(W.y0 - margin, pixel / 2), y1: W.y1 + margin },
     };
   };
-  // A finite family is enumerated whole whatever the radii: one step.
   if (scape.population === null) return [step(rMin, Infinity)];
 
   const steps: Step[] = [];

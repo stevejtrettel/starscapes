@@ -182,7 +182,8 @@ d = 2, an ellipse for d = 3). For d ≥ 4 its kernel has dimension d − 3:
 finite. Degree ≥ 4 needs a truncation that sees the whole polynomial. The
 code offers the classical one, and one adapted to the paper:
 
-- **boxes**, |aₖ| ≤ H, in any degree (`catalogue/box.ts`);
+- **boxes and balls**, max |aₖ| ≤ H or Σ aₖ² ≤ R², in any degree
+  (`catalogue/box.ts`);
 - **planes**, f = aP + bQ + cR with bounded integer (a, b, c), for any
   integer polynomials P, Q, R (`catalogue/plane.ts`).
 
@@ -284,7 +285,8 @@ carries an integer point, and diverge when the image Ψ_h(W) is thin. A
 head carries a star only if roughly hi·y^(e + 1/(d−1)) ≳ 1, so the loops
 fail close to the real axis: for cubics with |disc| ≤ 1024 in the strip
 0.002 ≤ y ≤ 0.05, a third of the stars had been found after 40 seconds.
-The same happens in deep zooms of large boxes (§9).
+The same happens in deep zooms of large boxes. Each has its remedy:
+symmetry (§5.5) and lattice reduction (§5.6).
 
 ### 5.5 Enumeration by symmetry — `modular/`, `catalogue/transport.ts`
 
@@ -343,6 +345,56 @@ Möbius map instead (its position and size stay correct).
 
 The monic cubics are invariant only under translations and are not
 transported.
+
+### 5.6 Enumeration by lattice reduction — `lattice/`
+
+For boxes and balls in higher degree the head loop costs at least one
+step per head, H^(d−1) of them, however small the window. But the
+polynomials with a root near z₀ lie near the subspace
+{Re f(z₀) = Im f(z₀) = 0} of coefficient space, and integer points near a
+subspace are short vectors of a lattice.
+
+**Lemma 5.3 [tested].** Let ‖f‖₂ ≤ R and let f have a root within ρ of
+z₀. With m = |z₀| + ρ and L₂ = ‖(k(k−1)m^(k−2))_k‖,
+
+    |f(z₀)| ≤ ρ·|f′(z₀)| + ρ²RL₂/2,
+
+and, if ρκ < 1,
+
+    |f(z₀)| ≤ ε := R·ρ·(L⊥ + ρL₂/2)/(1 − ρκ),
+
+where M, N are the 2 × (d+1) real matrices of f ↦ f(z₀), f ↦ f′(z₀),
+L⊥ = σ_max(N restricted to ker M) and κ = σ_max(N)/σ_min(M).
+
+*Proof.* Taylor at z₀ with |f″| ≤ RL₂ on the disc gives the first. Split
+f along ker M and its complement: the component outside ker M has norm
+≤ |f(z₀)|/σ_min(M), so |f′(z₀)| ≤ L⊥R + κ|f(z₀)|; substitute. ∎
+
+So the polynomials sought are integer points of the cylinder
+{‖f‖ ≤ R, |f(z₀)| ≤ ε}, which lies in an ellipsoid, and those are the
+vectors of bounded length in the lattice spanned by
+
+    b_k = (S₁·e_k, ⌊S₂·Re z₀ᵏ⌉, ⌊S₂·Im z₀ᵏ⌉),      S₂/S₁ ≈ R/ε
+
+— the lattice Kannan, Lenstra and Lovász use to recognise an algebraic
+number, of which here every short vector is wanted, not the shortest. The
+basis is reduced exactly (integral LLL, in BigInt: the lattice is as
+eccentric as the window is small) and the ellipsoid searched by
+Fincke–Pohst. Each point is tested by the first inequality of the lemma,
+evaluated in the lattice's own coordinates, and the survivors are solved
+and kept if a root really lies in the window.
+
+Work is proportional to the number of lattice points in the ellipsoid,
+which the volume predicts to three digits, and is independent of H. It
+exceeds the number of stars by a factor of order d² — the inequality
+bounds |f′(z₀)| by its largest value, and most polynomials have less —
+and, for a box, by the further factor by which the ball around a cube
+exceeds it (2.6 in degree 3, 65 in degree 7, 490 in degree 10). In degree
+8, the 162 000 stars with ‖f‖₂ ≤ 12 in a window of size 0.003 take three
+seconds; the box of the same size has 9·10⁸ heads. `box` and `ball`
+estimate both costs and choose, and refuse a window that neither method
+could finish: a wide view of a large family in high degree holds more
+stars than can be drawn.
 
 ---
 
@@ -441,6 +493,9 @@ enumeration order never matters.
 | a catalogue is independent of how the window is cut (tangencies, boundary stars) | `catalogue.test` | the uncut window |
 | Möbius image boxes; tiles meeting a window; exact position in 𝔉 | `modular.test` | dense sampling; the reduction algorithm |
 | transport ≡ direct enumeration, quadratics and cubics | `modular.test` | the direct catalogues, star for star |
+| LLL (same lattice, reduced); Fincke–Pohst | `lattice.test` | Gram determinants, Gram–Schmidt; brute force |
+| Lemma 5.3: every polynomial of the ball with a root in the disc is found | `lattice.test` | solving every polynomial of the ball |
+| box and ball: lattice ≡ heads | `lattice.test` | each other, star for star |
 | shells partition; shell = {r_min ≤ r < r_max} | `catalogue.test`, `style.test` | a deeper catalogue, filtered |
 | Prop. 6.1: ink formula, zoom exponent, even β | `style.test` | measured Σπr² |
 | raster: order independence, area-true dust | `style.test` | direct computation |
@@ -450,18 +505,13 @@ enumeration order never matters.
 
 ## 9. Not done
 
-1. **Deep zooms of high-degree boxes.** The polynomials with a root near
-   z are the lattice points of a thin slab around the hyperplane pair
-   Re f(z) = Im f(z) = 0. LLL-reducing that lattice and enumerating by
-   Fincke–Pohst lists them with work proportional to their number, at any
-   zoom; the head loop of `box.ts` does not.
-2. **Quartics by invariants.** Bounded (I, J), equivalently bounded Julia
+1. **Quartics by invariants.** Bounded (I, J), equivalently bounded Julia
    invariant, is an SL₂(ℤ)-invariant truncation with compact fibres
    (Cremona; Bhargava–Shankar), the analogue of bounded discriminant.
-3. **Certified roots.** Roots from `aberth.ts` are not certified; Smith's
+2. **Certified roots.** Roots from `aberth.ts` are not certified; Smith's
    disc bound with a running error estimate would certify isolation and
    the real/non-real split in float64.
-4. **Other rings and alphabets.** Quadratics over ℤ[i] (stars in ℂ, the
+3. **Other rings and alphabets.** Quadratics over ℤ[i] (stars in ℂ, the
    Bianchi group in place of PSL₂(ℤ)); polynomials with coefficients in a
    finite set, where the natural exact algorithm is a pruned tree search.
 
