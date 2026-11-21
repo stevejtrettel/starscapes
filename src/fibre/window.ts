@@ -23,13 +23,24 @@ export function pad(W: Window, margin: number): Window {
   };
 }
 
-/** The window with the given centre and height whose width follows the aspect ratio. */
-export function windowAt(centre: readonly [number, number], height: number, aspect = 1): Window {
-  const halfW = (height * aspect) / 2;
+/**
+ * A view: what a picture or a camera looks at. Plain data, shared by the
+ * print pipeline and the live explorer.
+ */
+export interface View {
+  /** Centre of the picture in ℂ, as [Re, Im]. */
+  readonly centre: readonly [number, number];
+  /** Height of the picture in ℂ; the width follows the aspect ratio. */
+  readonly height: number;
+}
+
+/** The part of the closed upper half plane a view shows at the given aspect ratio (width/height). */
+export function windowOf(view: View, aspect = 1): Window {
+  const halfW = (view.height * aspect) / 2;
   return {
-    s0: centre[0] - halfW,
-    s1: centre[0] + halfW,
-    y0: Math.max(0, centre[1] - height / 2),
-    y1: centre[1] + height / 2,
+    s0: view.centre[0] - halfW,
+    s1: view.centre[0] + halfW,
+    y0: Math.max(0, view.centre[1] - view.height / 2),
+    y1: view.centre[1] + view.height / 2,
   };
 }

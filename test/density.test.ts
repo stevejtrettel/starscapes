@@ -66,7 +66,8 @@ describe("Davenport–Shintani", () => {
     });
     // Bhargava–Shankar–Tsimerman, Theorem 5:
     //   N(−X, 0) = (π²/24)·X + ζ(2/3)Γ(1/3)(2π)^(1/3)/(10Γ(2/3))·X^(5/6) + O(X^(3/4+ε)).
-    const secondary = (-2.4475807362336582 * 2.678938534707747 * (2 * Math.PI) ** (1 / 3)) / (10 * 1.3541179394264);
+    // ζ(2/3) = −2.4475807…, Γ(1/3) = 2.6789385…, Γ(2/3) = 1.3541179….
+    const secondary = (-2.447580736233658 * 2.678938534707747 * (2 * Math.PI) ** (1 / 3)) / (10 * 1.3541179394264);
     const predicted = (Math.PI ** 2 / 24) * X + secondary * X ** (5 / 6);
     expect(classes).toBe(28452);
     expect(Math.abs(classes / predicted - 1)).toBeLessThan(0.02); // 28452 vs 28008

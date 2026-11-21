@@ -12,16 +12,9 @@
  * faintest → 0 is a property of the size law (style/sizeLaw.ts).
  */
 import type { Star } from "../catalogue/star.ts";
-import { type Window, windowAt } from "../fibre/window.ts";
+import { type View, type Window, windowOf } from "../fibre/window.ts";
 import type { Starscape } from "../starscape.ts";
 import { type Compositing, createRaster, depositDisc, develop } from "./raster.ts";
-
-export interface View {
-  /** Centre of the picture in ℂ. */
-  readonly centre: readonly [number, number];
-  /** Height of the picture in ℂ; the width follows the image's aspect ratio. */
-  readonly height: number;
-}
 
 export interface PictureOptions {
   readonly width: number;
@@ -69,7 +62,7 @@ export function renderPicture(scape: Starscape, view: View, options: PictureOpti
   const pixel = view.height / height;
   const raster = createRaster(width, height, options.compositing ?? "opaque", options.supersample ?? 2);
 
-  const W = windowAt(view.centre, view.height, width / height);
+  const W = windowOf(view, width / height);
   const top = view.centre[1] + view.height / 2;
   const rgb = new Float64Array([INK, INK, INK]);
   let stars = 0;

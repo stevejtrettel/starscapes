@@ -3,7 +3,6 @@ import type { Window } from "../src/fibre/window.ts";
 import { createRaster, depositDisc, develop } from "../src/render/raster.ts";
 import { type Family, starscape } from "../src/starscape.ts";
 import { euclidean, hyperbolic, naturalRadius, type SizeLaw, zoomExponent } from "../src/style/sizeLaw.ts";
-import { collect } from "./support.ts";
 
 const W: Window = { s0: 0.1, s1: 0.5, y0: 0.7, y1: 1.1 };
 
