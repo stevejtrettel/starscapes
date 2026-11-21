@@ -214,6 +214,8 @@ T(p, W) is a finite union of closed intervals. Its endpoints are among the
 values t = −p(ζ) at the points ζ ∈ ∂W where p(ζ) is real, and the number
 N(t) of roots of p + t in W changes by exactly ±1 as t passes such a value
 transversally — by +1 iff −1/p′(ζ) points into W. N(t) = 0 for |t| large.
+Where the curve {Im p = 0} is tangent to ∂W, the root touches the window
+for a single t, an isolated point of T.
 
 *Proof.* z is a root of p + t iff p(z) = −t, which forces p(z) real; the
 roots depend continuously on t and can enter or leave W only through ∂W;
@@ -225,6 +227,14 @@ T(p, W) costs four real-root computations in one variable, for any degree,
 and its integer points are read off by a sweep through the sorted
 crossings. Every integer it yields is the constant term of a polynomial
 with a root in W: nothing is solved in vain.
+
+Tangencies are not a curiosity here. Window and band edges sit at simple
+numbers, stars at algebraic ones, and a star whose curve has its lowest
+point exactly on an edge occurs in practice (49x³ + 4x, at height 2/7).
+The edge polynomial then has a double root, which rounding displaces by
+the square root of its error; so double roots are detected with a
+tolerance, and interval endpoints are widened by 10⁻⁶ before rounding to
+integers. Exact membership is decided on the solved root.
 
 ### 5.2 Heads
 
@@ -266,13 +276,73 @@ root (for HST's family, ζ = i and a = b: the members (x² + 1)(ax + c)) —
 a singular point of the planar starscape, the "black hole" of HST
 Corollary 4.30.
 
-### 5.4 What is not optimal
+### 5.4 Where the head loops are inefficient
 
 Work is proportional to the number of *scan lines* (head, a₁), not to the
 number of stars. The two agree up to a constant when a typical line
-carries an integer point, and diverge when the image Ψ_h(W) is thin:
-close to the real axis for shells with e < 1, and in deep zooms of large
-boxes. Both have known remedies that are not implemented (§9).
+carries an integer point, and diverge when the image Ψ_h(W) is thin. A
+head carries a star only if roughly hi·y^(e + 1/(d−1)) ≳ 1, so the loops
+fail close to the real axis: for cubics with |disc| ≤ 1024 in the strip
+0.002 ≤ y ≤ 0.05, a third of the stars had been found after 40 seconds.
+The same happens in deep zooms of large boxes (§9).
+
+### 5.5 Enumeration by symmetry — `modular/`, `catalogue/transport.ts`
+
+For the families invariant under SL₂(ℤ) — all quadratics, all cubics —
+the remedy is the symmetry itself. Let 𝔉 = {|s| ≤ ½, |z| ≥ 1} and call a
+form *reduced* if its root lies in 𝔉. Since the group acts compatibly on
+forms and roots and δ is invariant,
+
+    stars in W  =  ⋃_γ  γ·{ (f, z) : z ∈ 𝔉 ∩ γ⁻¹W },
+
+the union over the tiles γ𝔉 meeting W. In 𝔉 we have y ≥ √3/2, the heads
+are few, and the direct enumerators do work proportional to their output;
+near the real axis the tiles are many but each holds few stars. The strip
+above takes 1.7 seconds.
+
+*Tiles.* γ𝔉 meets W iff 𝔉 meets γ⁻¹W. The bounding box of a Möbius image
+of a rectangle is found exactly: γz = a/c − c⁻²/(z + d/c), and the two
+coordinates of u ↦ −1/u have no critical point inside a rectangle, so
+their extremes lie on its edges at points that can be listed. The tiles
+meeting a connected set are connected under adjacency (γ ↦ γT^±1, γS), so
+a breadth-first search from the tile of one point of W finds them all.
+
+*The boundary.* Stars on ∂𝔉 are common — they lie on rational geodesics —
+and each must be given to exactly one tile. Floating point cannot do
+this; integers can. With 𝔉 taken half-open, a quadratic (a, b, c) is
+reduced iff −a < b ≤ a < c or 0 ≤ b ≤ a = c (Gauss), and for a cubic form
+(αx + βy)(x² − 2sxy + ny²) = ax³ + bx²y + cxy² + dy³ the four integers
+
+    d(d − b) + a(c − a) = (n − 1)·|α + βz|²,        ad − bc = 2s·|αz − β|²,
+    ad − (a + b)(a + b + c) = (2s − 1)·|α(1 − z) + β|²,
+    ad + (a − b)(a − b + c) = (2s + 1)·|α(1 + z) − β|²
+
+carry the signs of |z| − 1, s, s − ½, s + ½ (Mathews; Belabas, Lemma 4.2)
+**[tested]**. At the elliptic points i and ρ, fixed by S and by ST, a
+star is seen from 2 or 3 tiles; the least γ in a fixed order keeps it.
+
+*Infinity.* A reduced binary form may have a root at ∞, so that as a
+polynomial its degree drops, and still be carried to a polynomial of full
+degree. For cubics these are y·(bx² + cxy + dy²): the reducible cubics
+whose rational root sits at the cusp of their tile. They are the quadratic
+catalogue with δ = 2b·√y, the case a = 0 of the formula for δ.
+
+*Shells.* For e ≠ 0 the bound hi·y′^e refers to the height y′ of the
+carried star. The piece of 𝔉 behind a tile is cut into cells over which
+y′ varies by at most a factor 3/2; each is enumerated with the invariant
+shell covering it, and membership is decided after carrying.
+
+A carried star is completed from its integer coefficients by the same
+code as a directly enumerated one, so the two methods produce identical
+stars **[tested: equal as sets, coordinates bit for bit]**, and a window
+can be split between them: `allQuadratics` and `allCubics` use the direct
+loops above a crossover height and transport below it. Coefficients grow
+with the depth of the tile, like q^d for a tile at the cusp p/q; beyond
+2⁵³ they are no longer exact in float64 and the star is placed by the
+Möbius map instead (its position and size stay correct).
+
+The monic cubics are invariant only under translations and are not
+transported.
 
 ---
 
@@ -368,6 +438,9 @@ enumeration order never matters.
 | closed-form cubic crossings | `fibre.test` | the general crossings |
 | pencil scan | `plane.test` | solving p + tR for every t |
 | catalogues: quadratic, cubic, monic, box (d = 4, 5, 6), planes | `catalogue.test`, `plane.test` | brute force over coefficient boxes |
+| a catalogue is independent of how the window is cut (tangencies, boundary stars) | `catalogue.test` | the uncut window |
+| Möbius image boxes; tiles meeting a window; exact position in 𝔉 | `modular.test` | dense sampling; the reduction algorithm |
+| transport ≡ direct enumeration, quadratics and cubics | `modular.test` | the direct catalogues, star for star |
 | shells partition; shell = {r_min ≤ r < r_max} | `catalogue.test`, `style.test` | a deeper catalogue, filtered |
 | Prop. 6.1: ink formula, zoom exponent, even β | `style.test` | measured Σπr² |
 | raster: order independence, area-true dust | `style.test` | direct computation |
@@ -377,24 +450,18 @@ enumeration order never matters.
 
 ## 9. Not done
 
-1. **Transport by PSL₂(ℤ).** For the invariant families the stars near
-   the real axis are Möbius images of stars in the fundamental domain.
-   Enumerating reduced forms once and transporting them over the tiles
-   γ𝔉 meeting the window would make work proportional to output there
-   (§5.4), and is the algorithmic use of the symmetry asked for in HST
-   §7.4.
-2. **Deep zooms of high-degree boxes.** The polynomials with a root near
+1. **Deep zooms of high-degree boxes.** The polynomials with a root near
    z are the lattice points of a thin slab around the hyperplane pair
    Re f(z) = Im f(z) = 0. LLL-reducing that lattice and enumerating by
    Fincke–Pohst lists them with work proportional to their number, at any
    zoom; the head loop of `box.ts` does not.
-3. **Quartics by invariants.** Bounded (I, J), equivalently bounded Julia
+2. **Quartics by invariants.** Bounded (I, J), equivalently bounded Julia
    invariant, is an SL₂(ℤ)-invariant truncation with compact fibres
    (Cremona; Bhargava–Shankar), the analogue of bounded discriminant.
-4. **Certified roots.** Roots from `aberth.ts` are not certified; Smith's
+3. **Certified roots.** Roots from `aberth.ts` are not certified; Smith's
    disc bound with a running error estimate would certify isolation and
    the real/non-real split in float64.
-5. **Other rings and alphabets.** Quadratics over ℤ[i] (stars in ℂ, the
+4. **Other rings and alphabets.** Quadratics over ℤ[i] (stars in ℂ, the
    Bianchi group in place of PSL₂(ℤ)); polynomials with coefficients in a
    finite set, where the natural exact algorithm is a pruned tree search.
 

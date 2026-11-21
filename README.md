@@ -48,7 +48,8 @@ says which test checks which statement.
 | path | what it is |
 |---|---|
 | `src/fibre/` | Tail coordinates on {f(z) = 0}; the tail scan and pencil scan (which constant terms put a root in a window). |
-| `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), coefficient boxes of any degree, planar families. |
+| `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), coefficient boxes of any degree, planar families; enumeration by symmetry. |
+| `src/modular/` | PSL₂(ℤ): Möbius maps, the tiles meeting a window, exact membership of the fundamental domain. |
 | `src/style/` | The size laws r = c·y^β·δ^(−κ) (visibility, ink, zoom exponent) and the colourings. |
 | `src/starscape.ts`, `src/recipe.ts`, `src/presets.ts` | A family plus a size law; a whole picture as plain data; the named pictures. |
 | `src/render/` | Raster (order-independent, area-true), the picture pipeline, PNG output. |

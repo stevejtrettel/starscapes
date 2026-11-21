@@ -4,7 +4,7 @@ import { cubics } from "../src/catalogue/cubics.ts";
 import { quadratics } from "../src/catalogue/quadratics.ts";
 import { type Catalogue, delta, inShell, type Shell } from "../src/catalogue/star.ts";
 import type { Window } from "../src/fibre/window.ts";
-import { bruteStars, collect } from "./support.ts";
+import { bruteStars, collect, starKey } from "./support.ts";
 
 /** Asserts catalogue ∩ W equals the brute-force set, with no repeats. */
 function expectEqual(catalogue: Catalogue, W: Window, brute: Set<string>): void {
@@ -99,4 +99,35 @@ describe("box catalogue ≡ brute force", () => {
     const brute = bruteStars([[-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1], [1, 1]], W);
     expectEqual(box(6, 1, { monic: true }), W, brute);
   });
+});
+
+describe("a catalogue does not depend on how the window is cut", () => {
+  // Cuts at heights and abscissae where stars sit exactly: y = 2/7 is the
+  // lowest point of the curve of 49x³ + 4x + t, tangent to that edge.
+  const whole: Window = { s0: -0.5, s1: 1, y0: 0.1, y1: 1.1 };
+  const cuts: Array<["s" | "y", number]> = [["y", 2 / 7], ["y", 0.5], ["y", Math.sqrt(3) / 2], ["s", 0], ["s", 0.5], ["s", 1 / 3]];
+  const cases: Array<[string, Catalogue]> = [
+    ["quadratics", quadratics({ lo: 0, hi: 30, exponent: 1 })],
+    ["cubics, e = 1/2", cubics({ lo: 0, hi: 28, exponent: 0.5 })],
+    ["cubics, e = 0", cubics({ lo: 0, hi: 9, exponent: 0 })],
+    ["monic cubics", cubics({ lo: 0, hi: 40, exponent: 0 }, { monic: true })],
+    ["quartic box", box(4, 3)],
+  ];
+  for (const [name, catalogue] of cases) {
+    it(name, () => {
+      const all = collect((v) => catalogue(whole, v)).sort();
+      expect(all.length).toBeGreaterThan(100);
+      for (const [axis, at] of cuts) {
+        // The lower/left part keeps the stars on the cut.
+        const first: Window = axis === "y" ? { ...whole, y1: at } : { ...whole, s1: at };
+        const second: Window = axis === "y" ? { ...whole, y0: at } : { ...whole, s0: at };
+        const parts: string[] = [];
+        catalogue(first, (star) => parts.push(starKey(star)));
+        catalogue(second, (star) => {
+          if ((axis === "y" ? star.y : star.s) > at) parts.push(starKey(star));
+        });
+        expect(parts.sort(), `cut at ${axis} = ${at}`).toEqual(all);
+      }
+    });
+  }
 });

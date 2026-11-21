@@ -67,15 +67,26 @@ export function findPencilCrossings(p: Poly, R: Poly, W: Window, out: Crossings)
     const d2 = dr * dr + di * di;
     const vr = -(jr[0] * dr + jr[1] * di) / d2;
     const vi = -(jr[1] * dr - jr[0] * di) / d2;
-    if (out.count === out.t.length) return;
+    if (out.count + 2 > out.t.length) return;
+    if (nx === 0 && ny === 0) {
+      // A tangency: the root touches ∂W for this one t (see tailScan.ts).
+      out.t[out.count] = t;
+      out.sign[out.count++] = 1;
+      out.t[out.count] = t;
+      out.sign[out.count++] = -1;
+      return;
+    }
     out.t[out.count] = t;
     out.sign[out.count++] = vr * nx + vi * ny < 0 ? 1 : -1;
   };
+  const touches: number[] = [];
 
   // Horizontal edges: ζ = s + i·y_e, a polynomial condition in s.
   for (const [ye, ny] of [[W.y0, -1], [W.y1, 1]] as const) {
     const edge = imOfProductWithConjugate(shiftComplex(p, 0, ye), shiftComplex(R, 0, ye));
-    for (const s of realRoots(edge, ...widen(W.s0, W.s1))) cross(s, ye, 0, ny);
+    touches.length = 0;
+    for (const s of realRoots(edge, ...widen(W.s0, W.s1), touches)) cross(s, ye, 0, ny);
+    for (const s of touches) cross(s, ye, 0, 0);
   }
   // Vertical edges: ζ = s_e + iy, and f(s_e + iy) = Σ q_m i^m y^m with q = f(x + s_e).
   const alongImaginary = (f: Poly, se: number): [number[], number[]] => {
@@ -86,7 +97,9 @@ export function findPencilCrossings(p: Poly, R: Poly, W: Window, out: Crossings)
   };
   for (const [se, nx] of [[W.s0, -1], [W.s1, 1]] as const) {
     const edge = imOfProductWithConjugate(alongImaginary(p, se), alongImaginary(R, se));
-    for (const y of realRoots(edge, ...widen(W.y0, W.y1))) cross(se, y, nx, 0);
+    touches.length = 0;
+    for (const y of realRoots(edge, ...widen(W.y0, W.y1), touches)) cross(se, y, nx, 0);
+    for (const y of touches) cross(se, y, 0, 0);
   }
 }
 

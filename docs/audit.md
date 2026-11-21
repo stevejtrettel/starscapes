@@ -142,3 +142,14 @@ theorems.
   recipe is the same picture on screen and in print.
 - **Colourings** (`src/style/colour.ts`) and the explorer's control panel
   for c, κ, β, the magnitude limit and the colouring.
+- **Enumeration by symmetry** (`src/modular/`, `catalogue/transport.ts`):
+  for all quadratics and all cubics, reduced forms in the fundamental
+  domain are carried to every tile meeting the window. Identical output
+  to the direct loops, and fast where they are not — a strip of cubics
+  near the real axis that had not finished in 40 seconds takes under 2.
+- **Tangencies and exact boundaries.** Comparing the two methods exposed
+  stars lost in three ways, all on boundaries: on the window's edge, on a
+  shell's boundary (|disc| exactly the bound), and where a starscape
+  curve is tangent to an edge. Shell membership is now decided on
+  integers where it can be, tangencies are counted, and a test checks
+  that a catalogue does not depend on how its window is cut.

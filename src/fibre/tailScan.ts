@@ -47,6 +47,9 @@ export function createCrossings(capacity: number): Crossings {
   return { t: new Float64Array(capacity), sign: new Int8Array(capacity), count: 0 };
 }
 
+/** |disc| or |f| below this relative size at an edge counts as a tangency. */
+export const TANGENT = 1e-9;
+
 const jet = new Float64Array(4);
 
 /**
@@ -55,8 +58,12 @@ const jet = new Float64Array(4);
  * distance of ∂W may be reported although it lies outside; no root inside
  * is ever lost. (A curve through a corner is then found on both edges;
  * the sweep notices the inconsistent count and falls back to a superset.)
+ *
+ * It is 10⁻⁶ rather than a few ulps because of tangencies: where a curve
+ * touches an edge, a rounding error ε in the edge polynomial moves its
+ * double root apart by √ε, opening a spurious gap of that order in T.
  */
-export const SLACK = 1e-9;
+export const SLACK = 1e-6;
 export const widen = (lo: number, hi: number): [number, number] => [
   lo - SLACK * (1 + Math.abs(lo)),
   hi + SLACK * (1 + Math.abs(hi)),
@@ -75,6 +82,19 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
     out.t[out.count] = -jet[0];
     out.sign[out.count++] = outward < 0 ? 1 : -1;
   };
+  /**
+   * A tangency at ζ: the curve touches ∂W there without crossing, so the
+   * root is in W (which is closed) for that one value of t. Recorded as an
+   * entry immediately followed by an exit.
+   */
+  const touch = (s: number, y: number): void => {
+    evalJet(p, s, y, jet);
+    out.t[out.count] = -jet[0];
+    out.sign[out.count++] = 1;
+    out.t[out.count] = -jet[0];
+    out.sign[out.count++] = -1;
+  };
+  const touches: number[] = [];
 
   // Horizontal edges y = y_e. By Taylor expansion in the imaginary direction,
   //   Im p(s + iy)/y = Σ_{j odd} (−1)^((j−1)/2) y^(j−1) p⁽ʲ⁾(s)/j!,
@@ -89,7 +109,8 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
         edge[k - j] += weight * binom * p[k];
       }
     }
-    for (const s of realRoots(edge, ...widen(W.s0, W.s1))) {
+    touches.length = 0;
+    for (const s of realRoots(edge, ...widen(W.s0, W.s1), touches)) {
       if (ye > 0) cross(s, ye, 0, ny);
       else {
         // On the real axis the edge polynomial is p′: a conjugate pair is
@@ -101,6 +122,7 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
         out.sign[out.count++] = second > 0 ? 1 : -1;
       }
     }
+    if (ye > 0) for (const s of touches) touch(s, ye);
   }
 
   // Vertical edges s = s_e. With q(x) = p(x + s_e),
@@ -109,9 +131,11 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
     const q = shift(p, se);
     const edge: number[] = [];
     for (let m = 1; m <= n; m += 2) edge.push((((m - 1) / 2) % 2 === 0 ? 1 : -1) * q[m]);
-    for (const y2 of realRoots(edge, ...widen(W.y0 * W.y0, W.y1 * W.y1))) {
+    touches.length = 0;
+    for (const y2 of realRoots(edge, ...widen(W.y0 * W.y0, W.y1 * W.y1), touches)) {
       if (y2 > 0) cross(se, Math.sqrt(y2), nx, 0);
     }
+    for (const y2 of touches) if (y2 > 0) touch(se, Math.sqrt(y2));
   }
 }
 
@@ -173,7 +197,7 @@ export function sweep(
   }
 }
 
-const scratch = createCrossings(64);
+const scratch = createCrossings(128);
 
 /**
  * Calls emit(t) once for every integer t ∈ T(p, W), in increasing order.
@@ -183,7 +207,7 @@ const scratch = createCrossings(64);
  * exact membership test the root they solve for. No member is ever lost.
  */
 export function tailScan(p: Poly, W: Window, emit: (t: number) => void): void {
-  const cs = p.length <= 21 ? scratch : createCrossings(3 * p.length);
+  const cs = p.length <= 21 ? scratch : createCrossings(6 * p.length);
   findCrossings(p, W, cs);
   sweep(cs, emit);
 }

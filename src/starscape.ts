@@ -9,8 +9,8 @@
 import { box } from "./catalogue/box.ts";
 import { cubics } from "./catalogue/cubics.ts";
 import { plane } from "./catalogue/plane.ts";
-import { quadratics } from "./catalogue/quadratics.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
+import { allCubics, allQuadratics } from "./catalogue/transport.ts";
 import { naturalRadius, type Population, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
 
 export type Family =
@@ -74,7 +74,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
         spec,
         degree: 2,
         population: { power: 3, weight: 2 }, // Δ³/6 per unit hyperbolic area
-        stars: (rMin, rMax) => quadratics(shellOfRadii(law, rMin, rMax)),
+        stars: (rMin, rMax) => allQuadratics(shellOfRadii(law, rMin, rMax)),
         radius: draw,
         // δ = 2ay ≥ 2y, and δ = √|disc| ≥ √3.
         radiusBound: boundFrom((y) => Math.max(2 * y, Math.sqrt(3))),
@@ -85,7 +85,11 @@ export function starscape(spec: StarscapeSpec): Starscape {
         degree: 3,
         // All cubics: πΔ⁴/16 per unit hyperbolic area. Monic: Δ³/(3√y) per unit area.
         population: family.monic ? { power: 3, weight: 0.5 } : { power: 4, weight: 2 },
-        stars: (rMin, rMax) => cubics(shellOfRadii(law, rMin, rMax), { monic: family.monic }),
+        stars: (rMin, rMax) => {
+          const shell = shellOfRadii(law, rMin, rMax);
+          // The monic cubics are invariant under translations only: no transport.
+          return family.monic ? cubics(shell, { monic: true }) : allCubics(shell);
+        },
         radius: draw,
         // δ² = 4y[(b + 3as)² + a²y²] ≥ 4y³, and δ⁴ = 4|disc| ≥ 12.
         radiusBound: boundFrom((y) => Math.max(2 * y ** 1.5, 12 ** 0.25)),

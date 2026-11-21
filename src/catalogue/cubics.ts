@@ -19,14 +19,14 @@
  * hyperbolic area, and over a fundamental domain that count is Davenport's
  * (π²/24)·X for classes of forms with −X < disc < 0 (test/density.test.ts).
  */
-import { type Crossings, createCrossings, sweep, widen } from "../fibre/tailScan.ts";
+import { type Crossings, createCrossings, sweep, TANGENT, widen } from "../fibre/tailScan.ts";
 import { contains, type Window } from "../fibre/window.ts";
 import { discriminant } from "../poly/discriminant.ts";
 import { solveCubic } from "../roots/closedForm.ts";
 import { type Catalogue, clipToShell, inShell, powerRange, type Shell, type Star, type Visit } from "./star.ts";
 
 /** δ⁴ = 4|disc| ≥ 12: the least |disc| of a cubic with a non-real root is 3. */
-const DELTA_MIN = 12 ** 0.25;
+export const CUBIC_DELTA_MIN = 12 ** 0.25;
 
 const SLACK = 1e-9;
 const floorUp = (x: number): number => Math.floor(x + SLACK * (1 + Math.abs(x)));
@@ -34,7 +34,7 @@ const ceilDown = (x: number): number => Math.ceil(x - SLACK * (1 + Math.abs(x)))
 
 export function cubics(shell: Shell, options: { monic?: boolean } = {}): Catalogue {
   return (window: Window, visit): void => {
-    const W = clipToShell(window, shell, DELTA_MIN);
+    const W = clipToShell(window, shell, CUBIC_DELTA_MIN);
     if (!W) return;
     if (W.y0 <= 0) {
       throw new Error("cubics: this shell holds infinitely many stars near the real axis; raise the window's y0");
@@ -74,7 +74,16 @@ export function cubicCrossings(a: number, b: number, c: number, W: Window, out: 
   for (let edge = 0; edge < 2; edge++) {
     const y2 = edge === 0 ? W.y0 * W.y0 : W.y1 * W.y1;
     const disc = b * b - 3 * a * (c - a * y2);
-    if (disc <= 0) continue;
+    if (disc <= 0) {
+      // A double root: the curve is tangent to the edge, and the root is
+      // in W for that one t — an entry immediately followed by an exit.
+      const vertex = -b / (3 * a);
+      if (disc >= -TANGENT * (b * b + 3 * a * (Math.abs(c) + a * y2)) && vertex >= sLo && vertex <= sHi) {
+        cross(vertex, y2, true);
+        cross(vertex, y2, false);
+      }
+      continue;
+    }
     const root = Math.sqrt(disc);
     for (let k = 0; k < 2; k++) {
       const s = (-b + (k === 0 ? -root : root)) / (3 * a);
@@ -96,10 +105,8 @@ export function cubicCrossings(a: number, b: number, c: number, W: Window, out: 
 function scanBand(shell: Shell, monic: boolean, band: Window, closedBelow: boolean, visit: Visit): void {
   const e = shell.exponent;
   const f = new Float64Array(4);
-  const re = new Float64Array(3);
-  const im = new Float64Array(3);
   const star: Star = { f, s: 0, y: 0, slope: 0 };
-  const crossings = createCrossings(8);
+  const crossings = createCrossings(12);
 
   // δ ≤ hi·y^e reads (b + 3as)² + a²y² ≤ E(y), with E(y) = hi²·y^(2e−1)/4.
   // First consequence: a² ≤ (hi²/4)·y^(2e−3) somewhere in the band.
@@ -108,9 +115,11 @@ function scanBand(shell: Shell, monic: boolean, band: Window, closedBelow: boole
 
   for (let a = 1; a <= (monic ? Math.min(1, aBound) : aBound); a++) {
     // Second consequence: |b + 3as| ≤ m, m² = max E − a²·y₀².
-    const m2 = eMax - a * a * band.y0 * band.y0;
+    // (Widened like every bound here: a star exactly on the shell's
+    // boundary has m² = 0 up to rounding, and must not be dropped.)
+    const m2 = eMax * (1 + SLACK) - a * a * band.y0 * band.y0;
     if (m2 < 0) continue;
-    const m = Math.sqrt(m2);
+    const m = Math.sqrt(m2) + SLACK;
 
     for (let b = ceilDown(-3 * a * band.s1 - m); b <= floorUp(-3 * a * band.s0 + m); b++) {
       // The part of the band this head can reach.
@@ -135,21 +144,38 @@ function scanBand(shell: Shell, monic: boolean, band: Window, closedBelow: boole
         cubicCrossings(a, b, c, sub, crossings);
         sweep(crossings, (d) => {
           f[0] = d;
-          if (discriminant(f) >= 0) return; // no non-real root
-          solveCubic(f, re, im);
-          const s = re[1];
-          const y = im[1];
-          if (!contains(band, s, y) || (y === band.y0 && !closedBelow)) return;
-          const slope = 2 * y * Math.hypot(b + 3 * a * s, a * y);
-          if (!inShell(shell, slope / Math.sqrt(y), y)) return;
-          star.s = s;
-          star.y = y;
-          star.slope = slope;
+          if (!locateCubic(star, shell)) return;
+          if (!contains(band, star.s, star.y) || (star.y === band.y0 && !closedBelow)) return;
           visit(star);
         });
       }
     }
   }
+}
+
+const re = new Float64Array(3);
+const im = new Float64Array(3);
+
+/**
+ * Completes a star from its coefficients — the non-real root by the
+ * closed form, |f′(z)| = 2y·|(b + 3as) + i·ay| — and says whether it is a
+ * star of the shell. False if the cubic has three real roots.
+ *
+ * For e = 0 the shell is a bound on the discriminant, δ⁴ = 4|disc|, and
+ * is tested on that integer: exact, and the same for equivalent forms.
+ */
+export function locateCubic(star: Star, shell: Shell): boolean {
+  const { f } = star;
+  const disc = discriminant(f);
+  if (disc >= 0) return false;
+  solveCubic(f, re, im);
+  const s = re[1];
+  const y = im[1];
+  star.s = s;
+  star.y = y;
+  star.slope = 2 * y * Math.hypot(f[2] + 3 * f[3] * s, f[3] * y);
+  if (shell.exponent === 0) return -4 * disc > shell.lo ** 4 && -4 * disc <= shell.hi ** 4;
+  return inShell(shell, star.slope / Math.sqrt(y), y);
 }
 
 /** The real root of a cubic star: r = −b/a − 2s, by Vieta. */

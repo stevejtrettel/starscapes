@@ -14,7 +14,7 @@ import { contains, type Window } from "../fibre/window.ts";
 import { type Catalogue, clipToShell, powerRange, type Shell, type Star } from "./star.ts";
 
 /** δ = √|disc| ≥ √3 for every integer quadratic with a non-real root. */
-const DELTA_MIN = Math.sqrt(3);
+export const QUADRATIC_DELTA_MIN = Math.sqrt(3);
 
 /** Relative widening of real bounds before rounding to integers. */
 const SLACK = 1e-9;
@@ -22,19 +22,32 @@ const floorUp = (x: number): number => Math.floor(x + SLACK * (1 + Math.abs(x)))
 const ceilDown = (x: number): number => Math.ceil(x - SLACK * (1 + Math.abs(x)));
 
 /**
- * Shell membership lo·y^e < δ ≤ hi·y^e with δ = 2ay, written as
- * lo·y^(e−1) < 2a ≤ hi·y^(e−1): for e = 1 this compares integers with the
- * bounds, so a star exactly on the boundary (2a = hi) is decided exactly.
+ * Completes a star from its coefficients — s = −b/2a, y = √(4ac − b²)/2a,
+ * |f′(z)| = √(4ac − b²) — and says whether it is a star of the shell.
+ *
+ * Membership lo·y^e < δ ≤ hi·y^e is decided exactly where it can be: for
+ * e = 0 by the integer δ² = |disc| against the bounds squared, and for
+ * e = 1, where it reads lo < 2a ≤ hi, by the integer 2a. A star exactly
+ * on the boundary of a shell is then never a matter of rounding — and the
+ * e = 0 test, depending only on the invariant, gives the same answer for a
+ * form and for every form equivalent to it.
  */
-function memberOfShell(shell: Shell, a: number, y: number): boolean {
-  const scale = shell.exponent === 1 ? 1 : y ** (shell.exponent - 1);
+export function locateQuadratic(star: Star, shell: Shell): boolean {
+  const [c, b, a] = [star.f[0], star.f[1], star.f[2]];
+  const D = 4 * a * c - b * b; // −disc, an exact integer
+  if (D <= 0) return false;
+  star.slope = Math.sqrt(D);
+  star.s = -b / (2 * a);
+  star.y = star.slope / (2 * a);
+  if (shell.exponent === 0) return D > shell.lo * shell.lo && D <= shell.hi * shell.hi;
+  const scale = shell.exponent === 1 ? 1 : star.y ** (shell.exponent - 1);
   return 2 * a > shell.lo * scale && 2 * a <= shell.hi * scale;
 }
 
 export function quadratics(shell: Shell): Catalogue {
   return (window: Window, visit): void => {
     const e = shell.exponent;
-    const W = clipToShell(window, shell, DELTA_MIN);
+    const W = clipToShell(window, shell, QUADRATIC_DELTA_MIN);
     if (!W) return;
 
     // lo·y^(e−1) < 2a ≤ hi·y^(e−1) for some y in the window.
@@ -67,17 +80,8 @@ export function quadratics(shell: Shell): Catalogue {
         const base = (b * b) / (4 * a); // a·s²
         f[1] = b;
         for (let c = ceilDown(base + a * yA * yA); c <= floorUp(base + a * yB * yB); c++) {
-          const D = 4 * a * c - b * b; // −disc, an exact integer
-          if (D <= 0) continue;
-          const slope = Math.sqrt(D);
-          const s = -b / (2 * a);
-          const y = slope / (2 * a);
-          if (!contains(W, s, y) || !memberOfShell(shell, a, y)) continue;
           f[0] = c;
-          star.s = s;
-          star.y = y;
-          star.slope = slope;
-          visit(star);
+          if (locateQuadratic(star, shell) && contains(W, star.s, star.y)) visit(star);
         }
       }
     }

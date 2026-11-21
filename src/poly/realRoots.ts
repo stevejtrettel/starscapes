@@ -7,15 +7,23 @@
  * changes sign. Each bracket is refined by Newton's method safeguarded by
  * bisection, which cannot leave the bracket and converges quadratically.
  *
- * Roots of even multiplicity (f touches zero without changing sign) are
- * in general not reported. That is the right behaviour for the one consumer, the
- * tail scan (fibre/tailScan.ts), where such a root is a curve tangent to
- * the window's edge rather than crossing it.
+ * A root of even multiplicity is a critical point at which f vanishes
+ * without changing sign. In floating point "vanishes" can only mean "is
+ * zero to rounding", so these are reported separately, as TOUCHES: the
+ * critical points where |f| is below a relative tolerance and f does not
+ * change sign on either side. (Where it does change sign, however
+ * slightly, there are two honest roots and they are found as such.)
  */
 import { degree, evalReal, type Poly } from "./poly.ts";
 
-/** Sign-changing real roots of f in [lo, hi], ascending. */
-export function realRoots(f: Poly, lo: number, hi: number): number[] {
+/** |f(v)| ≤ TOUCH·Σ|f_k||v|^k at a critical point v counts as f(v) = 0. */
+const TOUCH = 1e-9;
+
+/**
+ * The sign-changing real roots of f in [lo, hi], ascending. If `touches`
+ * is given, the points of (lo, hi) where f touches zero are appended to it.
+ */
+export function realRoots(f: Poly, lo: number, hi: number, touches?: number[]): number[] {
   const n = degree(f);
   if (n <= 0 || !(lo <= hi)) return [];
   if (n === 1) {
@@ -30,21 +38,29 @@ export function realRoots(f: Poly, lo: number, hi: number): number[] {
   } else {
     const df: number[] = [];
     for (let k = 1; k <= n; k++) df.push(k * f[k]);
-    critical = realRoots(df, lo, hi);
+    critical = realRoots(df, lo, hi).filter((v) => v > lo && v < hi);
   }
 
+  const points = [lo, ...critical, hi];
+  const values = points.map((x) => evalReal(f, x));
+  const last = points.length - 1;
   const roots: number[] = [];
-  let u = lo;
-  let fu = evalReal(f, lo);
-  for (let i = 0; i <= critical.length; i++) {
-    const v = i < critical.length ? critical[i] : hi;
-    const fv = evalReal(f, v);
-    if (fu === 0) roots.push(u);
-    else if (fu * fv < 0) roots.push(refine(f, n, u, v, fu));
-    u = v;
-    fu = fv;
+  if (values[0] === 0) roots.push(lo);
+  for (let i = 0; i < last; i++) {
+    if (values[i] * values[i + 1] < 0) roots.push(refine(f, n, points[i], points[i + 1], values[i]));
+    if (i + 1 === last) break;
+    // The critical point between this piece and the next.
+    const [before, at, after] = [values[i], values[i + 1], values[i + 2]];
+    if (at === 0) {
+      if (before * after < 0) roots.push(points[i + 1]); // odd multiplicity ≥ 3
+      else touches?.push(points[i + 1]);
+    } else if (touches && before * at >= 0 && at * after >= 0) {
+      let scale = 0;
+      for (let k = n; k >= 0; k--) scale = scale * Math.abs(points[i + 1]) + Math.abs(f[k]);
+      if (Math.abs(at) <= TOUCH * scale) touches.push(points[i + 1]);
+    }
   }
-  if (fu === 0 && hi > lo) roots.push(hi);
+  if (values[last] === 0 && hi > lo) roots.push(hi);
   return roots;
 }
 
