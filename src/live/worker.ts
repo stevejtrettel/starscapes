@@ -7,16 +7,15 @@
  * on its own, so the picture appears in order of visual weight and a
  * superseded request is dropped between shells.
  */
-import { realRoot } from "../catalogue/cubics.ts";
 import type { Star } from "../catalogue/star.ts";
 import { windowOf } from "../fibre/window.ts";
-import { hasRationalRoot } from "../poly/rationalRoot.ts";
+import { keeps, lawAt } from "../recipe.ts";
 import { plan } from "../render/picture.ts";
 import { type Starscape, starscape } from "../starscape.ts";
+import { paint } from "../style/colour.ts";
 import { type ChunkMessage, type DoneMessage, FLOATS_PER_DISC, type RenderRequest } from "./protocol.ts";
 
 const DISCS_PER_CHUNK = 16384;
-const INK = 0.05;
 
 let pending: RenderRequest | null = null;
 let busy = false;
@@ -41,9 +40,13 @@ const breathe = (): Promise<void> => new Promise((resolve) => setTimeout(resolve
 
 async function render(request: RenderRequest): Promise<void> {
   const started = performance.now();
-  const scape: Starscape = starscape(request.spec);
-  const { view } = request;
+  const { recipe } = request;
+  const { view } = recipe;
   const pixel = view.height / request.viewportH;
+  const scape: Starscape = starscape({ family: recipe.spec.family, law: lawAt(recipe, pixel) });
+  const keep = keeps(recipe);
+  const colour = paint(recipe.colouring);
+  const rgb = new Float32Array(3);
 
   let discs = new Float32Array(DISCS_PER_CHUNK * FLOATS_PER_DISC);
   let filled = 0;
@@ -56,12 +59,13 @@ async function render(request: RenderRequest): Promise<void> {
     filled = 0;
   };
   const send = (star: Star): void => {
-    if (request.irreducible && star.f.length === 4 && hasRationalRoot(star.f, realRoot(star))) return;
+    if (!keep(star)) return;
     const o = filled * FLOATS_PER_DISC;
     discs[o] = star.s - view.centre[0];
     discs[o + 1] = star.y - view.centre[1];
     discs[o + 2] = scape.radius(star);
-    discs[o + 3] = discs[o + 4] = discs[o + 5] = INK;
+    colour(star, rgb);
+    discs.set(rgb, o + 3);
     stars++;
     if (++filled === DISCS_PER_CHUNK) flush();
   };
@@ -72,7 +76,7 @@ async function render(request: RenderRequest): Promise<void> {
   // zoom would enumerate everything within the largest conceivable radius.
   const W = windowOf(view, request.viewportW / request.viewportH);
   const maxMargin = scape.population === null ? view.height / 2 : Infinity;
-  for (const step of plan(scape, W, pixel, request.faintest, maxMargin)) {
+  for (const step of plan(scape, W, pixel, recipe.faintest, maxMargin)) {
     scape.stars(step.rMin, step.rMax)(step.window, send);
     flush();
     await breathe();

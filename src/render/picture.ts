@@ -12,7 +12,9 @@
  */
 import type { Star } from "../catalogue/star.ts";
 import { type View, type Window, windowOf } from "../fibre/window.ts";
-import type { Starscape } from "../starscape.ts";
+import { keeps, lawAt, type Recipe } from "../recipe.ts";
+import { type Starscape, starscape } from "../starscape.ts";
+import { paint } from "../style/colour.ts";
 import { type Compositing, createRaster, depositDisc, develop } from "./raster.ts";
 
 export interface PictureOptions {
@@ -114,4 +116,24 @@ export function renderPicture(scape: Starscape, view: View, options: PictureOpti
   }
 
   return { rgb: develop(raster), width, height, stars };
+}
+
+/**
+ * A recipe as an image of the given size: the size law is taken at the
+ * image's pixel size (recipe.ts), so the picture carries the same ink at
+ * any resolution.
+ */
+export function renderRecipe(
+  recipe: Recipe,
+  size: { width: number; height?: number; compositing?: Compositing; supersample?: number },
+): Picture {
+  const height = size.height ?? size.width;
+  const scape = starscape({ family: recipe.spec.family, law: lawAt(recipe, recipe.view.height / height) });
+  return renderPicture(scape, recipe.view, {
+    ...size,
+    height,
+    faintest: recipe.faintest,
+    colour: paint(recipe.colouring),
+    keep: keeps(recipe),
+  });
 }

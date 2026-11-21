@@ -13,16 +13,23 @@ After Harriss, Stange, Trettel, *Algebraic Number Starscapes*
 
 ```bash
 npm install
-npm run dev                                   # the explorer: drag to pan, scroll to zoom
+npm run dev                                   # the explorer
 npm test                                      # typecheck + tests
 node scripts/prints/print.ts quadratics       # → outputs/quadratics.png
-node scripts/prints/print.ts cubics width=3600 centre=0.3,0.8 span=0.2
+node scripts/prints/print.ts cubics width=3600 centre=0.3,0.8 span=0.2 colour=real-root
 node scripts/prints/print.ts box degree=5 H=4
+node scripts/prints/print.ts starscape.json width=6000    # a picture saved from the explorer
 ```
 
 No build step: Vite serves the TypeScript, and Node (≥ 22.18) runs the
 scripts directly. `scripts/prints/print.ts` documents its options; the
 named pictures are in `src/presets.ts`.
+
+In the explorer, drag to pan and scroll to zoom. The panel edits the size
+law r = c·y^β·δ^(−κ), the size of the faintest stars drawn, and the
+colouring; **save** downloads the picture as a recipe (also kept in the
+URL, so links restore it), and the print script turns a recipe into an
+image of any size with the same ink.
 
 ## The idea in four lines
 
@@ -42,8 +49,8 @@ says which test checks which statement.
 |---|---|
 | `src/fibre/` | Tail coordinates on {f(z) = 0}; the tail scan and pencil scan (which constant terms put a root in a window). |
 | `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), coefficient boxes of any degree, planar families. |
-| `src/style/sizeLaw.ts` | The size laws r = c·y^β·δ^(−κ): visibility, ink, zoom exponent. |
-| `src/starscape.ts`, `src/presets.ts` | A family plus a size law, as plain data; the named pictures. |
+| `src/style/` | The size laws r = c·y^β·δ^(−κ) (visibility, ink, zoom exponent) and the colourings. |
+| `src/starscape.ts`, `src/recipe.ts`, `src/presets.ts` | A family plus a size law; a whole picture as plain data; the named pictures. |
 | `src/render/` | Raster (order-independent, area-true), the picture pipeline, PNG output. |
 | `src/live/` | The explorer: worker streaming stars largest-first, WebGL2 discs. |
 | `src/poly/`, `src/roots/` | Polynomial arithmetic, exact discriminants, solvers. |

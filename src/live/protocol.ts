@@ -3,19 +3,15 @@
  * data. A request carries a generation number; the worker tags what it
  * sends back, and abandons a request when a newer one arrives.
  */
-import type { View } from "../fibre/window.ts";
-import type { StarscapeSpec } from "../starscape.ts";
+import type { Recipe } from "../recipe.ts";
 
 export interface RenderRequest {
   readonly generation: number;
-  readonly spec: StarscapeSpec;
-  readonly irreducible: boolean;
-  readonly view: View;
+  /** What to draw. Its view is the window wanted; its size law is quoted at any pixel size. */
+  readonly recipe: Recipe;
   /** Viewport size in CSS pixels. */
   readonly viewportW: number;
   readonly viewportH: number;
-  /** Radius, in pixels, of the faintest stars to send. */
-  readonly faintest: number;
 }
 
 /** Floats per disc: [x, y, radius, r, g, b]. */

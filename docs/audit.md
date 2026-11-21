@@ -130,8 +130,15 @@ theorems.
 
 ## Deliberately not carried over
 
-- The **save-recipe button** and serialisable picture documents: the
-  `StarscapeSpec` + `View` pair is the document; nothing writes it yet.
-- **Translucent compositing, colour styles beyond ink**: `renderPicture`
-  takes a `colour` function; no presets use it.
+- **Translucent compositing.**
 - **Multiplicities in the root store**: a repeated root is not a star.
+
+## Added since
+
+- **Recipes** (`src/recipe.ts`): a picture as plain data — family, size
+  law, colouring, filter, view — edited by the explorer, mirrored in the
+  URL, saved as JSON, and read back by the print script. The size constant
+  is quoted at a pixel size and follows the zoom law to any other, so a
+  recipe is the same picture on screen and in print.
+- **Colourings** (`src/style/colour.ts`) and the explorer's control panel
+  for c, κ, β, the magnitude limit and the colouring.
