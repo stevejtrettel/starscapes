@@ -13,16 +13,6 @@ export function contains(W: Window, s: number, y: number): boolean {
   return s >= W.s0 && s <= W.s1 && y >= W.y0 && y <= W.y1;
 }
 
-/** W enlarged by `margin` on every side, clipped to the upper half plane. */
-export function pad(W: Window, margin: number): Window {
-  return {
-    s0: W.s0 - margin,
-    s1: W.s1 + margin,
-    y0: Math.max(0, W.y0 - margin),
-    y1: W.y1 + margin,
-  };
-}
-
 /**
  * A view: what a picture or a camera looks at. Plain data, shared by the
  * print pipeline and the live explorer.

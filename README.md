@@ -1,47 +1,54 @@
 # starscapes
 
-Pictures of the roots of families of integer polynomials in the complex
-plane — a live explorer for finding them, an offline renderer for printing
-them at gallery scale, and (planned) a raymarched shader view of the same
-mathematics.
+Pictures of the complex roots of integer polynomials: each root a disc
+whose size is an arithmetic invariant of its polynomial. A live explorer
+and an offline renderer, both built on exact enumeration — given a window
+of the upper half plane, the code lists precisely the polynomials of a
+family whose roots are visible in it.
 
-Built as a clean-slate rewrite, designed conversation-first: the design
-records in `docs/` are the authority, and code exists to realize them.
+After Harriss, Stange, Trettel, *Algebraic Number Starscapes*
+([arXiv:2008.07655](https://arxiv.org/abs/2008.07655)).
 
-## Run things
+## Run
 
 ```bash
 npm install
-npm run dev                                # the live explorer (drag to pan, scroll to zoom)
-npx vitest run                             # the test suite
-node scripts/prints/first-light.ts         # the classic quadratic starscape → outputs/
-node scripts/prints/geodesic-deep.ts       # a deep 3600px print of a geodesic window
-node scripts/experiments/<any>.ts          # reproduce a lab-notebook experiment
+npm run dev                                   # the explorer: drag to pan, scroll to zoom
+npm test                                      # typecheck + tests
+node scripts/prints/print.ts quadratics       # → outputs/quadratics.png
+node scripts/prints/print.ts cubics width=3600 centre=0.3,0.8 span=0.2
+node scripts/prints/print.ts box degree=5 H=4
 ```
 
-No build step anywhere: Vite serves the explorer's TypeScript directly, and
-Node runs the scripts natively. Everything generated lands in `outputs/`
-(gitignored — every artifact is regenerable from its script).
+No build step: Vite serves the TypeScript, and Node (≥ 22.18) runs the
+scripts directly. `scripts/prints/print.ts` documents its options; the
+named pictures are in `src/presets.ts`.
 
-## Where things are
+## The idea in four lines
 
-| Path | What |
+A *star* is a pair (f, z), f ∈ ℤ[x], f(z) = 0, Im z > 0. Writing
+f = x²h(x) + a₁x + a₀, the root z and the head h determine the tail
+(a₁, a₀); so the stars with head h are the preimage of ℤ² under an
+explicit map, with density |f′(z)|²/y. The invariant
+δ = |f′(z)|·y^(−(d−2)/2) is the local form of the discriminant; sizes are
+r = c·y^β·δ^(−κ), and a picture shows every star above a given size.
+
+[docs/mathematics.md](docs/mathematics.md) develops this, with proofs, and
+says which test checks which statement.
+
+## Layout
+
+| path | what it is |
 |---|---|
-| `docs/design.md` | The design record: what the system is, its settled contracts, build-order status. Start here. |
-| `docs/live-sampling.md` | The sampling method behind the explorer (view-cone enumeration, depth law, constant-ink zoom) with derivations and the generalization path to higher degrees. |
-| `docs/experiments.md` | The lab notebook, E1–E12: every experiment with its prediction, result, and verdict — including the instructive failures. |
-| `docs/conventions.md` | The code charter and research-process rules. |
-| `shaders.tex` | The raymarching write-up behind the (future) shader mode. |
-| `src/core/` | Pure math, imports nothing: solvers, families, search, invariants, styles. |
-| `src/render/`, `src/offline/`, `src/pipeline/` | The offline rasterizer and print pipeline. |
-| `src/live/` | The explorer: camera, GL disks, render worker. |
-| `scripts/prints/` | One script per picture; `scripts/experiments/` mirrors the notebook. |
-
-## State (2026-07-04)
-
-Quadratics end to end: tested core (closed-form solvers, exact
-discriminants), offline prints in seconds, live explorer with smooth
-constant-ink zoom to arbitrary depth. Next up, in `docs/design.md`'s
-build-order: the explorer's save-recipe button, cubics in the live view
-(each family gets its own small derivations — see live-sampling.md §5),
-and the march/shader mode.
+| `src/fibre/` | Tail coordinates on {f(z) = 0}; the tail scan and pencil scan (which constant terms put a root in a window). |
+| `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), coefficient boxes of any degree, planar families. |
+| `src/style/sizeLaw.ts` | The size laws r = c·y^β·δ^(−κ): visibility, ink, zoom exponent. |
+| `src/starscape.ts`, `src/presets.ts` | A family plus a size law, as plain data; the named pictures. |
+| `src/render/` | Raster (order-independent, area-true), the picture pipeline, PNG output. |
+| `src/live/` | The explorer: worker streaming stars largest-first, WebGL2 discs. |
+| `src/poly/`, `src/roots/` | Polynomial arithmetic, exact discriminants, solvers. |
+| `docs/mathematics.md` | Definitions, propositions, proofs. Start here. |
+| `docs/literature.md` | Annotated sources, and what each is used for. |
+| `docs/audit.md` | What changed from the first version and why; errors found. |
+| `docs/history/` | The first version's design notes and lab notebook. |
+| `shaders.tex` | The ray-marching write-up (a different way to draw the same sets). |
