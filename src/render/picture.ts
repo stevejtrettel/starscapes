@@ -1,9 +1,8 @@
 /**
  * From a starscape to an image: the one pipeline behind every print.
  *
- *     stars at least `faintest` pixels in radius, in the view (padded so
- *     that discs centred just outside still draw)  →  size  →  colour  →
- *     raster.
+ *     stars at least `faintest` pixels in radius whose discs meet the
+ *     view  →  size  →  colour  →  raster.
  *
  * The catalogue is magnitude-limited: it is complete down to the stated
  * radius and contains nothing smaller. Since sub-sample discs deposit
@@ -39,21 +38,52 @@ export interface Picture {
 
 const INK = 0.05;
 
+/** One step of a picture: the stars with rMin ≤ natural radius < rMax, to be sought in `window`. */
+export interface Step {
+  readonly rMin: number;
+  readonly rMax: number;
+  readonly window: Window;
+}
+
 /**
- * The window to enumerate so that every disc meeting W is found: W padded
- * by the largest radius a star near it can have, and kept half a pixel
- * above the real axis (below that nothing is resolvable, and a catalogue
- * may be infinite there).
+ * The plan of a picture of W at the given pixel size: the stars of radius
+ * at least `faintest` pixels whose discs can meet W, cut into shells
+ * [r, 2r) by radius, largest first.
+ *
+ * A disc centred outside W can still reach into it, so each shell is
+ * sought in W enlarged by that shell's largest radius — a wide margin for
+ * the few large stars, a negligible one for the many small. (One margin
+ * for all, the largest, would at deep zoom enumerate a region many times
+ * the view.) Re-deriving each shell separately costs a bounded factor,
+ * since the population grows like a power of 1/r.
+ *
+ * Windows stay half a pixel above the real axis: below that nothing is
+ * resolvable, and a catalogue may be infinite there. `maxMargin` caps the
+ * margin; discs centred farther outside are then not drawn.
  */
-export function reach(scape: Starscape, W: Window, pixel: number): Window {
-  let margin = scape.radiusBound(W.y1);
-  margin = 1.01 * scape.radiusBound(W.y1 + margin);
-  return {
-    s0: W.s0 - margin,
-    s1: W.s1 + margin,
-    y0: Math.max(W.y0 - margin, pixel / 2),
-    y1: W.y1 + margin,
+export function plan(scape: Starscape, W: Window, pixel: number, faintest: number, maxMargin = Infinity): Step[] {
+  const rMin = faintest * pixel;
+  // The largest radius of any star whose disc meets W: r ≤ radiusBound(y) at height y ≤ y₁ + r.
+  let largest = scape.radiusBound(W.y1);
+  largest = 1.01 * scape.radiusBound(W.y1 + largest);
+
+  const step = (lo: number, hi: number): Step => {
+    const margin = Math.min(hi, largest, maxMargin);
+    return {
+      rMin: lo,
+      rMax: hi,
+      window: { s0: W.s0 - margin, s1: W.s1 + margin, y0: Math.max(W.y0 - margin, pixel / 2), y1: W.y1 + margin },
+    };
   };
+  // A finite family is enumerated whole whatever the radii: one step.
+  if (scape.population === null) return [step(rMin, Infinity)];
+
+  const steps: Step[] = [];
+  const count = Math.max(1, Math.ceil(Math.log2(largest / rMin)));
+  for (let k = count - 1; k >= 0; k--) {
+    steps.push(step(rMin * 2 ** k, k === count - 1 ? Infinity : rMin * 2 ** (k + 1)));
+  }
+  return steps;
 }
 
 export function renderPicture(scape: Starscape, view: View, options: PictureOptions): Picture {
@@ -67,7 +97,7 @@ export function renderPicture(scape: Starscape, view: View, options: PictureOpti
   const rgb = new Float64Array([INK, INK, INK]);
   let stars = 0;
 
-  scape.stars((options.faintest ?? 0.25) * pixel)(reach(scape, W, pixel), (star) => {
+  const draw = (star: Star): void => {
     if (options.keep && !options.keep(star)) return;
     options.colour?.(star, rgb);
     depositDisc(
@@ -78,7 +108,10 @@ export function renderPicture(scape: Starscape, view: View, options: PictureOpti
       rgb[0], rgb[1], rgb[2],
     );
     stars++;
-  });
+  };
+  for (const step of plan(scape, W, pixel, options.faintest ?? 0.25)) {
+    scape.stars(step.rMin, step.rMax)(step.window, draw);
+  }
 
   return { rgb: develop(raster), width, height, stars };
 }

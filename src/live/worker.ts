@@ -2,18 +2,16 @@
  * The render worker: enumerates the stars of the requested view and
  * streams them to the page as discs, largest first.
  *
- * "Largest first" is a partition of the catalogue into shells of radius
- * [r, 2r): each is a δ-shell (catalogue/star.ts), enumerated on its own,
- * so the picture appears in order of visual weight and a superseded
- * request is dropped between shells. Because a family's population grows
- * like a power of 1/r, re-deriving each shell from scratch costs only a
- * bounded factor over a single pass.
+ * "Largest first" is the plan of render/picture.ts: the catalogue cut into
+ * shells of radius [r, 2r), each a δ-shell (catalogue/star.ts) enumerated
+ * on its own, so the picture appears in order of visual weight and a
+ * superseded request is dropped between shells.
  */
 import { realRoot } from "../catalogue/cubics.ts";
 import type { Star } from "../catalogue/star.ts";
 import { windowOf } from "../fibre/window.ts";
 import { hasRationalRoot } from "../poly/rationalRoot.ts";
-import { reach } from "../render/picture.ts";
+import { plan } from "../render/picture.ts";
 import { type Starscape, starscape } from "../starscape.ts";
 import { type ChunkMessage, type DoneMessage, FLOATS_PER_DISC, type RenderRequest } from "./protocol.ts";
 
@@ -46,8 +44,6 @@ async function render(request: RenderRequest): Promise<void> {
   const scape: Starscape = starscape(request.spec);
   const { view } = request;
   const pixel = view.height / request.viewportH;
-  const W = reach(scape, windowOf(view, request.viewportW / request.viewportH), pixel);
-  const rMin = request.faintest * pixel;
 
   let discs = new Float32Array(DISCS_PER_CHUNK * FLOATS_PER_DISC);
   let filled = 0;
@@ -70,13 +66,14 @@ async function render(request: RenderRequest): Promise<void> {
     if (++filled === DISCS_PER_CHUNK) flush();
   };
 
-  // Radii rMin·2ᵏ, descending from the largest radius any star here can have.
-  // A finite family has no shell structure worth exploiting: one pass.
-  const top = scape.radiusBound(W.y1);
-  const shells = scape.population === null ? 1 : Math.max(1, Math.ceil(Math.log2(top / rMin)));
-  for (let k = shells - 1; k >= 0; k--) {
-    const lo = rMin * 2 ** k;
-    scape.stars(lo, k === shells - 1 ? Infinity : 2 * lo)(W, send);
+  // Largest stars first; a newer request supersedes this one between steps.
+  // For a finite family the margin is capped at half the view: its
+  // catalogue has no size structure to exploit, and without the cap a deep
+  // zoom would enumerate everything within the largest conceivable radius.
+  const W = windowOf(view, request.viewportW / request.viewportH);
+  const maxMargin = scape.population === null ? view.height / 2 : Infinity;
+  for (const step of plan(scape, W, pixel, request.faintest, maxMargin)) {
+    scape.stars(step.rMin, step.rMax)(step.window, send);
     flush();
     await breathe();
     if (pending) return;

@@ -11,6 +11,8 @@
 import { degree, evalJet, type Poly } from "../poly/poly.ts";
 
 const MAX_ITER = 200;
+/** Relative step size below which the iteration is considered settled. */
+const TOLERANCE = 1e-10;
 const jet = new Float64Array(4);
 
 /**
@@ -22,17 +24,20 @@ const jet = new Float64Array(4);
 export function solveAberth(f: Poly, re: Float64Array, im: Float64Array): number {
   const d = degree(f);
 
-  // Start on a circle of radius ρ = Cauchy's bound scaled to the geometric
-  // mean modulus |a₀/a_d|^(1/d), at angles that avoid the real axis and
-  // any symmetry of f.
+  // Start near the circle of radius ρ = |a₀/a_d|^(1/d), the geometric mean
+  // modulus of the roots, at angles that avoid the real axis. The radii
+  // are staggered: points placed exactly on a circle (or symmetric under
+  // z ↦ 1/z, z ↦ −z) stall on polynomials sharing that symmetry.
   let rho = Math.abs(f[0] / f[d]) ** (1 / d);
   if (!(rho > 0)) rho = 1;
   for (let i = 0; i < d; i++) {
     const angle = (2 * Math.PI * i) / d + 0.7;
-    re[i] = rho * Math.cos(angle);
-    im[i] = rho * Math.sin(angle);
+    const radius = rho * (0.75 + (0.6 * i) / d);
+    re[i] = radius * Math.cos(angle);
+    im[i] = radius * Math.sin(angle);
   }
 
+  let settled = false;
   for (let iter = 1; iter <= MAX_ITER; iter++) {
     let moved = 0;
     for (let i = 0; i < d; i++) {
@@ -69,7 +74,10 @@ export function solveAberth(f: Poly, re: Float64Array, im: Float64Array): number
       im[i] = zi - stepI;
       moved = Math.max(moved, Math.hypot(stepR, stepI) / (1 + Math.hypot(zr, zi)));
     }
-    if (moved <= 4e-16) return iter;
+    // Convergence is cubic, so one sweep after the steps fall below
+    // TOLERANCE brings simple roots to working precision.
+    if (settled) return iter;
+    settled = moved <= TOLERANCE;
   }
   return -1;
 }

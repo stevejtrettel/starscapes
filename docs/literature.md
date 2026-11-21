@@ -214,9 +214,10 @@ Mostly **[snippet]** or **[memory]** — the survey could not open these.
 - **Aberth–Ehrlich** with Bini's starting points and stopping rule (Bini
   1996; code read: `polzeros` in
   [polyroots-fortran](https://github.com/jacobwilliams/polyroots-fortran))
-  **[read]**. `roots/aberth.ts` is the plain iteration with a single
-  starting circle, adequate for the small coefficients used so far;
-  Bini's Newton-polygon start is the upgrade if it ever fails to settle.
+  **[read]**. `roots/aberth.ts` is the plain iteration from staggered
+  radii about one circle, adequate for the small coefficients used so far
+  (about 7 sweeps per quartic); Bini's Newton-polygon start is the upgrade
+  for coefficients of widely different sizes.
 - **Smith's bound** (1970) **[snippet + checked numerically]**: for
   distinct approximations zᵢ the discs of radius
   n·|p(zᵢ)|/(|a_n|·∏_{j≠i}|zᵢ − zⱼ|) contain all roots, k roots in each

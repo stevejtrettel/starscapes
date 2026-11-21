@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Window } from "../src/fibre/window.ts";
+import { plan } from "../src/render/picture.ts";
 import { createRaster, depositDisc, develop } from "../src/render/raster.ts";
 import { type Family, starscape } from "../src/starscape.ts";
 import { euclidean, evenBeta, hyperbolic, naturalRadius, type SizeLaw, zoomExponent } from "../src/style/sizeLaw.ts";
@@ -36,6 +37,41 @@ describe("magnitude-limited catalogues", () => {
       });
     });
   }
+});
+
+describe("the plan of a picture", () => {
+  it("finds every star whose disc meets the view, once, with far fewer strays than one margin for all", () => {
+    for (const family of [{ kind: "quadratics" }, { kind: "cubics", monic: true }] as Family[]) {
+      const law = family.kind === "quadratics" ? hyperbolic(0.004) : euclidean(0.004);
+      const scape = starscape({ family, law });
+      const view: Window = { s0: 0.3, s1: 0.302, y0: 0.8, y1: 0.802 };
+      const pixel = 0.002 / 500;
+      const meets = (s: number, y: number, r: number): boolean =>
+        s + r >= view.s0 && s - r <= view.s1 && y + r >= view.y0 && y - r <= view.y1;
+
+      // Reference: everything within the largest radius of the view, filtered.
+      const big = scape.radiusBound(view.y1 + scape.radiusBound(view.y1)) * 1.01;
+      const padded: Window = { s0: view.s0 - big, s1: view.s1 + big, y0: view.y0 - big, y1: view.y1 + big };
+      const reference: string[] = [];
+      let enumeratedOnce = 0;
+      scape.stars(0.3 * pixel)(padded, (star) => {
+        enumeratedOnce++;
+        if (meets(star.s, star.y, scape.radius(star))) reference.push(`${Array.from(star.f)}`);
+      });
+
+      const got: string[] = [];
+      let enumeratedByPlan = 0;
+      for (const step of plan(scape, view, pixel, 0.3)) {
+        scape.stars(step.rMin, step.rMax)(step.window, (star) => {
+          enumeratedByPlan++;
+          if (meets(star.s, star.y, scape.radius(star))) got.push(`${Array.from(star.f)}`);
+        });
+      }
+      expect(got.sort()).toEqual(reference.sort());
+      expect(new Set(got).size).toBe(got.length);
+      expect(enumeratedByPlan).toBeLessThan(enumeratedOnce / 2);
+    }
+  });
 });
 
 describe("ink", () => {
