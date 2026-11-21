@@ -19,7 +19,7 @@
  * hyperbolic area, and over a fundamental domain that count is Davenport's
  * (π²/24)·X for classes of forms with −X < disc < 0 (test/density.test.ts).
  */
-import { type Crossings, createCrossings, sweep } from "../fibre/tailScan.ts";
+import { type Crossings, createCrossings, sweep, widen } from "../fibre/tailScan.ts";
 import { contains, type Window } from "../fibre/window.ts";
 import { discriminant } from "../poly/discriminant.ts";
 import { solveCubic } from "../roots/closedForm.ts";
@@ -62,6 +62,8 @@ export function cubics(shell: Shell, options: { monic?: boolean } = {}): Catalog
  */
 export function cubicCrossings(a: number, b: number, c: number, W: Window, out: Crossings): void {
   out.count = 0;
+  const [sLo, sHi] = widen(W.s0, W.s1);
+  const [y2Lo, y2Hi] = widen(W.y0 * W.y0, W.y1 * W.y1);
   const cross = (s: number, y2: number, entering: boolean): void => {
     out.t[out.count] = -(((a * s + b) * s + c) * s - (3 * a * s + b) * y2);
     out.sign[out.count++] = entering ? 1 : -1;
@@ -76,7 +78,7 @@ export function cubicCrossings(a: number, b: number, c: number, W: Window, out: 
     const root = Math.sqrt(disc);
     for (let k = 0; k < 2; k++) {
       const s = (-b + (k === 0 ? -root : root)) / (3 * a);
-      if (s < W.s0 || s > W.s1) continue;
+      if (s < sLo || s > sHi) continue;
       const rising = 3 * a * s + b > 0; // dz/dt = −1/p′ has imaginary part Im p′/|p′|²
       cross(s, y2, edge === 0 ? rising : !rising);
     }
@@ -86,7 +88,7 @@ export function cubicCrossings(a: number, b: number, c: number, W: Window, out: 
   for (let edge = 0; edge < 2; edge++) {
     const s = edge === 0 ? W.s0 : W.s1;
     const y2 = ((3 * a * s + 2 * b) * s + c) / a;
-    if (y2 >= W.y0 * W.y0 && y2 <= W.y1 * W.y1) cross(s, y2, edge === 0);
+    if (y2 >= y2Lo && y2 <= y2Hi) cross(s, y2, edge === 0);
   }
 }
 

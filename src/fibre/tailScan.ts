@@ -49,6 +49,19 @@ export function createCrossings(capacity: number): Crossings {
 
 const jet = new Float64Array(4);
 
+/**
+ * Relative slack. Edges are searched slightly beyond their ends, and
+ * interval endpoints are widened before rounding, so a root within this
+ * distance of ∂W may be reported although it lies outside; no root inside
+ * is ever lost. (A curve through a corner is then found on both edges;
+ * the sweep notices the inconsistent count and falls back to a superset.)
+ */
+export const SLACK = 1e-9;
+export const widen = (lo: number, hi: number): [number, number] => [
+  lo - SLACK * (1 + Math.abs(lo)),
+  hi + SLACK * (1 + Math.abs(hi)),
+];
+
 /** Finds the crossings of the pencil p + t with ∂W (any degree). */
 export function findCrossings(p: Poly, W: Window, out: Crossings): void {
   const n = p.length - 1;
@@ -76,7 +89,7 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
         edge[k - j] += weight * binom * p[k];
       }
     }
-    for (const s of realRoots(edge, W.s0, W.s1)) {
+    for (const s of realRoots(edge, ...widen(W.s0, W.s1))) {
       if (ye > 0) cross(s, ye, 0, ny);
       else {
         // On the real axis the edge polynomial is p′: a conjugate pair is
@@ -96,26 +109,29 @@ export function findCrossings(p: Poly, W: Window, out: Crossings): void {
     const q = shift(p, se);
     const edge: number[] = [];
     for (let m = 1; m <= n; m += 2) edge.push((((m - 1) / 2) % 2 === 0 ? 1 : -1) * q[m]);
-    for (const y2 of realRoots(edge, W.y0 * W.y0, W.y1 * W.y1)) {
+    for (const y2 of realRoots(edge, ...widen(W.y0 * W.y0, W.y1 * W.y1))) {
       if (y2 > 0) cross(se, Math.sqrt(y2), nx, 0);
     }
   }
 }
 
-/** Relative slack on interval endpoints: a root this close to ∂W may be reported. */
-const SLACK = 1e-9;
 const lower = (t: number): number => Math.ceil(t - SLACK * (1 + Math.abs(t))) + 0; // + 0: no −0
 const upper = (t: number): number => Math.floor(t + SLACK * (1 + Math.abs(t))) + 0;
 
 /**
- * Given the crossings, calls emit(t) once for every integer t ∈ T(p, W),
- * in increasing order. (Sorts the crossings in place.)
+ * Given the crossings, calls emit(t) once for every integer t in [tLo, tHi]
+ * at which the pencil has a root in W, in increasing order. (Sorts the
+ * crossings in place.) `base` is the number of roots in W as t → −∞: zero
+ * for a pencil p + t, the number of roots of R in W for a pencil p + tR.
  */
-export function sweep(cs: Crossings, emit: (t: number) => void): void {
+export function sweep(
+  cs: Crossings, emit: (t: number) => void,
+  base = 0, tLo = -Infinity, tHi = Infinity,
+): void {
   const { t, sign, count } = cs;
-  if (count === 0) return;
+  if (count === 0 && base === 0) return;
   for (let i = 1; i < count; i++) {
-    // insertion sort: there are at most 3·deg crossings
+    // insertion sort: there are only a few crossings per degree
     const ti = t[i];
     const si = sign[i];
     let j = i - 1;
@@ -127,28 +143,33 @@ export function sweep(cs: Crossings, emit: (t: number) => void): void {
     sign[j + 1] = si;
   }
 
-  // The root count must start and end at zero and never go negative. If
-  // it does not (a tangency or a corner hit counted once instead of twice),
-  // fall back to the convex hull of the crossings — a superset of T.
-  let roots = 0;
+  // The root count must return to its base value and never go negative.
+  // If it does not (a tangency or a corner hit counted once instead of
+  // twice), fall back to a superset of T: the convex hull of the
+  // crossings, or everything if roots persist at infinity.
+  let roots = base;
   let consistent = true;
   for (let i = 0; i < count; i++) {
     roots += sign[i];
     if (roots < 0) consistent = false;
   }
-  if (roots !== 0) consistent = false;
+  if (roots !== base) consistent = false;
   if (!consistent) {
-    for (let k = lower(t[0]); k <= upper(t[count - 1]); k++) emit(k);
+    const from = base > 0 ? tLo : Math.max(tLo, lower(t[0]));
+    const to = base > 0 ? tHi : Math.min(tHi, upper(t[count - 1]));
+    for (let k = from; k <= to; k++) emit(k);
     return;
   }
 
+  // Between consecutive crossings (and beyond the outermost) the count is constant.
   let last = -Infinity;
-  for (let i = 0; i < count - 1; i++) {
-    roots += sign[i];
+  for (let i = -1; i < count; i++) {
+    if (i >= 0) roots += sign[i];
     if (roots <= 0) continue;
-    const hi = upper(t[i + 1]);
-    for (let k = Math.max(lower(t[i]), last + 1); k <= hi; k++) emit(k);
-    last = Math.max(last, hi);
+    const from = Math.max(i >= 0 ? lower(t[i]) : tLo, tLo, last + 1);
+    const to = Math.min(i + 1 < count ? upper(t[i + 1]) : tHi, tHi);
+    for (let k = from; k <= to; k++) emit(k);
+    last = Math.max(last, to);
   }
 }
 

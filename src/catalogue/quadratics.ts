@@ -11,7 +11,7 @@
  * determined by the y-range. The shell bounds a through δ = 2ay.
  */
 import { contains, type Window } from "../fibre/window.ts";
-import { type Catalogue, clipToShell, inShell, powerRange, type Shell, type Star } from "./star.ts";
+import { type Catalogue, clipToShell, powerRange, type Shell, type Star } from "./star.ts";
 
 /** δ = √|disc| ≥ √3 for every integer quadratic with a non-real root. */
 const DELTA_MIN = Math.sqrt(3);
@@ -20,6 +20,16 @@ const DELTA_MIN = Math.sqrt(3);
 const SLACK = 1e-9;
 const floorUp = (x: number): number => Math.floor(x + SLACK * (1 + Math.abs(x)));
 const ceilDown = (x: number): number => Math.ceil(x - SLACK * (1 + Math.abs(x)));
+
+/**
+ * Shell membership lo·y^e < δ ≤ hi·y^e with δ = 2ay, written as
+ * lo·y^(e−1) < 2a ≤ hi·y^(e−1): for e = 1 this compares integers with the
+ * bounds, so a star exactly on the boundary (2a = hi) is decided exactly.
+ */
+function memberOfShell(shell: Shell, a: number, y: number): boolean {
+  const scale = shell.exponent === 1 ? 1 : y ** (shell.exponent - 1);
+  return 2 * a > shell.lo * scale && 2 * a <= shell.hi * scale;
+}
 
 export function quadratics(shell: Shell): Catalogue {
   return (window: Window, visit): void => {
@@ -62,7 +72,7 @@ export function quadratics(shell: Shell): Catalogue {
           const slope = Math.sqrt(D);
           const s = -b / (2 * a);
           const y = slope / (2 * a);
-          if (!contains(W, s, y) || !inShell(shell, slope, y)) continue;
+          if (!contains(W, s, y) || !memberOfShell(shell, a, y)) continue;
           f[0] = c;
           star.s = s;
           star.y = y;

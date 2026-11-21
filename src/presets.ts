@@ -62,6 +62,34 @@ export const PRESETS = {
     home: { centre: [0, 1.0], height: 2.4 },
     irreducible: false,
   },
+  "cubic-plane": {
+    // The planar family of Harriss–Stange–Trettel, Figure 1b.
+    title: "ax³ + cx² + bx + c",
+    spec: {
+      family: { kind: "plane", basis: [[0, 0, 0, 1], [0, 1], [1, 0, 1]], a: [1, 40], height: 40 },
+      law: hyperbolic(0.08, 4 / 3),
+    },
+    home: { centre: [0, 1.0], height: 2.0 },
+    irreducible: false,
+  },
+  "depressed-cubics": {
+    title: "depressed cubics x³ + bx + c",
+    spec: {
+      family: { kind: "plane", basis: [[0, 0, 0, 1], [0, 1], [1]], a: [1, 1], height: 400 },
+      law: euclidean(0.05, 1),
+    },
+    home: { centre: [0, 2.2], height: 4.6 },
+    irreducible: false,
+  },
+  "reciprocal-quartics": {
+    title: "reciprocal quartics a(x⁴ + 1) + b(x³ + x) + cx²",
+    spec: {
+      family: { kind: "plane", basis: [[1, 0, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1]], a: [1, 30], height: 60 },
+      law: hyperbolic(0.05, 1),
+    },
+    home: { centre: [0, 1.0], height: 2.0 },
+    irreducible: false,
+  },
 } as const satisfies Record<string, Preset>;
 
 export type PresetName = keyof typeof PRESETS;

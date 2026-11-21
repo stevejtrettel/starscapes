@@ -8,6 +8,7 @@
  */
 import { box } from "./catalogue/box.ts";
 import { cubics } from "./catalogue/cubics.ts";
+import { plane } from "./catalogue/plane.ts";
 import { quadratics } from "./catalogue/quadratics.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
 import { naturalRadius, type Population, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
@@ -18,7 +19,14 @@ export type Family =
   /** ax³ + bx² + cx + d, a ≥ 1 (a = 1 if monic). */
   | { readonly kind: "cubics"; readonly monic: boolean }
   /** Degree d, coefficients in [−H, H]. */
-  | { readonly kind: "box"; readonly degree: number; readonly height: number; readonly monic: boolean };
+  | { readonly kind: "box"; readonly degree: number; readonly height: number; readonly monic: boolean }
+  /** The integer plane aP + bQ + cR with a in the given range and |b|, |c| ≤ height. */
+  | {
+      readonly kind: "plane";
+      readonly basis: readonly [readonly number[], readonly number[], readonly number[]];
+      readonly a: readonly [number, number];
+      readonly height: number;
+    };
 
 export interface StarscapeSpec {
   readonly family: Family;
@@ -46,6 +54,20 @@ export function starscape(spec: StarscapeSpec): Starscape {
   const boundFrom = (deltaMin: (y: number) => number) => (y: number): number =>
     Math.min(law.cap * y, law.c * y ** law.beta * deltaMin(y) ** -law.kappa);
 
+  /** A finite family: its catalogue does not depend on the size limit, which only filters. */
+  const finite = (degree: number, all: Catalogue): Starscape => ({
+    spec,
+    degree,
+    population: null,
+    stars: (rMin, rMax = Infinity) => (W, visit) =>
+      all(W, (star) => {
+        const r = naturalRadius(law, star);
+        if (r >= rMin && r < rMax) visit(star);
+      }),
+    radius: draw,
+    radiusBound: (y) => law.cap * y,
+  });
+
   switch (family.kind) {
     case "quadratics":
       return {
@@ -68,21 +90,10 @@ export function starscape(spec: StarscapeSpec): Starscape {
         // δ² = 4y[(b + 3as)² + a²y²] ≥ 4y³, and δ⁴ = 4|disc| ≥ 12.
         radiusBound: boundFrom((y) => Math.max(2 * y ** 1.5, 12 ** 0.25)),
       };
-    case "box": {
-      const all = box(family.degree, family.height, { monic: family.monic });
-      return {
-        spec,
-        degree: family.degree,
-        population: null,
-        stars: (rMin, rMax = Infinity) => (W, visit) =>
-          all(W, (star) => {
-            const r = naturalRadius(law, star);
-            if (r >= rMin && r < rMax) visit(star);
-          }),
-        radius: draw,
-        radiusBound: (y) => law.cap * y,
-      };
-    }
+    case "box":
+      return finite(family.degree, box(family.degree, family.height, { monic: family.monic }));
+    case "plane":
+      return finite(family.basis[0].length - 1, plane({ basis: family.basis, a: family.a, H: family.height }));
     default: {
       // Exhaustiveness: a new Family member fails to compile here.
       const unreachable: never = family;
