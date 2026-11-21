@@ -8,8 +8,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: page("index.html"),
-        quadratics: page("demos/quadratics/index.html"),
-        "monic-cubics": page("demos/monic-cubics/index.html"),
+        explorer: page("demos/explorer/index.html"),
       },
     },
   },
