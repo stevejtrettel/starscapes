@@ -9,15 +9,19 @@
  *   leading        the leading coefficient a_d (dark = small).
  *   discriminant   the invariant δ, i.e. the discriminant for d ≤ 3.
  *   height         the naive height max |aₖ|.
+ *   shape          quartics: the shape χ (catalogue/quartics.ts) — the angle
+ *                  at z between the rays to the two real roots, on a hue
+ *                  wheel; quartics with a second pair of roots in a ramp.
  *   real-root      cubics: the real root r. It lives on the circle
  *                  ℝ ∪ {∞} = ∂ℍ, on which PSL₂(ℝ) acts, so it is shown on a
  *                  hue wheel through the angle 2·atan(r) (HST Fig. 1c).
  */
 import { realRoot } from "../catalogue/cubics.ts";
+import { quarticShape } from "../catalogue/quartics.ts";
 import { delta, type Star } from "../catalogue/star.ts";
 import { height } from "../poly/poly.ts";
 
-export const COLOURINGS = ["ink", "leading", "discriminant", "height", "real-root"] as const;
+export const COLOURINGS = ["ink", "leading", "discriminant", "height", "real-root", "shape"] as const;
 export type Colouring = (typeof COLOURINGS)[number];
 
 /** Writes the star's colour, components in [0, 1], to rgb[0..2]. */
@@ -77,6 +81,18 @@ export function paint(colouring: Colouring): Paint {
     case "real-root": {
       const wheel = from(WHEEL, (star) => 0.5 + Math.atan(realRoot(star)) / Math.PI);
       return (star, rgb) => (star.f.length === 4 ? wheel(star, rgb) : ink(star, rgb));
+    }
+    case "shape": {
+      // χ = cos(θ/2): the angle θ ∈ (0, 2π) between the rays to the two real
+      // roots goes round the wheel. A second pair (|χ| > 1) is drawn in the
+      // ramp's dark end, lighter the closer the pairs are.
+      const wheel = from(WHEEL, (star) => Math.acos(quarticShape(star)) / Math.PI);
+      const ramp = from(RAMP, (star) => 0.6 * (1 - 1 / Math.abs(quarticShape(star))));
+      return (star, rgb) => {
+        if (star.f.length !== 5) ink(star, rgb);
+        else if (Math.abs(quarticShape(star)) <= 1) wheel(star, rgb);
+        else ramp(star, rgb);
+      };
     }
   }
 }

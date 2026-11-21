@@ -12,11 +12,10 @@ function preset(
 ): Recipe {
   return {
     title,
-    spec,
+    spec: { ...spec, irreducible: options.irreducible ?? false },
     pixel: view.height / 1000,
     view,
     colouring: options.colouring ?? "ink",
-    irreducible: options.irreducible ?? false,
     faintest: 0.3,
   };
 }
@@ -67,7 +66,29 @@ export const PRESETS = {
     { irreducible: true },
   ),
 
+  // The irreducible integer quartics with two real roots (|χ| ≤ 1), sized
+  // by δ: the analogue for degree 4 of the quadratic and cubic starscapes.
+  // As there κ = D/3: each halving of the radius brings 8 times the stars.
+  // The even-ink exponent would be β = wκ/D = 2/3, but irreducible
+  // quartics of small δ fall well short of the asymptotic density, which
+  // leaves the foot of the page empty; β = 1/2 fills it.
   quartics: preset(
+    "irreducible integer quartics with two real roots",
+    { family: { kind: "quartics", tau: 1 }, law: { c: 0.09, beta: 1 / 2, kappa: 5 / 3, cap: 0.5 } },
+    SQUARE,
+    { irreducible: true, colouring: "shape" },
+  ),
+
+  // With τ = 2: also the quartics with two pairs of complex roots at
+  // hyperbolic distance ≥ arcoth 2 ≈ 0.55 from each other.
+  "quartics-all": preset(
+    "irreducible integer quartics of shape |χ| ≤ 2",
+    { family: { kind: "quartics", tau: 2 }, law: { c: 0.07, beta: 1 / 2, kappa: 5 / 3, cap: 0.5 } },
+    SQUARE,
+    { irreducible: true, colouring: "shape" },
+  ),
+
+  "quartic-box": preset(
     "integer quartics of height ≤ 5",
     { family: { kind: "box", degree: 4, height: 5, monic: false }, law: hyperbolic(0.04, 1) },
     SQUARE,

@@ -105,3 +105,29 @@ export function reduce(s: number, y: number): Matrix {
   }
   throw new Error("reduce: no convergence (is the point on the real axis?)");
 }
+
+/**
+ * The action on binary forms: out(x) = (cx + d)ⁿ·f((ax + b)/(cx + d)) for
+ * a form f of degree n = f.length − 1 (its leading coefficients may
+ * vanish: a root at infinity). The roots of out are m⁻¹ of the roots of f.
+ * Any integer matrix is allowed, not only determinant 1.
+ */
+export function substitute(f: ArrayLike<number>, m: Matrix, out: Float64Array | number[]): void {
+  const n = f.length - 1;
+  const [a, b, c, d] = m;
+  for (let i = 0; i <= n; i++) out[i] = 0;
+  for (let k = 0; k <= n; k++) {
+    if (f[k] === 0) continue;
+    // term = (ax + b)ᵏ (cx + d)ⁿ⁻ᵏ, built one linear factor at a time.
+    term.fill(0, 0, n + 1);
+    term[0] = 1;
+    for (let j = 0; j < n; j++) {
+      const lead = j < k ? a : c;
+      const constant = j < k ? b : d;
+      for (let i = j + 1; i >= 1; i--) term[i] = term[i] * constant + term[i - 1] * lead;
+      term[0] *= constant;
+    }
+    for (let i = 0; i <= n; i++) out[i] += f[k] * term[i];
+  }
+}
+const term = new Float64Array(16);

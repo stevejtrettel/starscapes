@@ -9,7 +9,7 @@
  */
 import type { Star } from "../catalogue/star.ts";
 import { windowOf } from "../fibre/window.ts";
-import { keeps, lawAt } from "../recipe.ts";
+import { lawAt } from "../recipe.ts";
 import { plan } from "../render/picture.ts";
 import { type Starscape, starscape } from "../starscape.ts";
 import { paint } from "../style/colour.ts";
@@ -43,8 +43,7 @@ async function render(request: RenderRequest): Promise<void> {
   const { recipe } = request;
   const { view } = recipe;
   const pixel = view.height / request.viewportH;
-  const scape: Starscape = starscape({ family: recipe.spec.family, law: lawAt(recipe, pixel) });
-  const keep = keeps(recipe);
+  const scape: Starscape = starscape({ ...recipe.spec, law: lawAt(recipe, pixel) });
   const colour = paint(recipe.colouring);
   const rgb = new Float32Array(3);
 
@@ -59,7 +58,6 @@ async function render(request: RenderRequest): Promise<void> {
     filled = 0;
   };
   const send = (star: Star): void => {
-    if (!keep(star)) return;
     const o = filled * FLOATS_PER_DISC;
     discs[o] = star.s - view.centre[0];
     discs[o + 1] = star.y - view.centre[1];

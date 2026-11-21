@@ -45,6 +45,31 @@ describe("closed forms", () => {
   });
 });
 
+describe("quartic closed form", () => {
+  it("x⁴ + 1, a biquadratic, and a quartic with four real roots", () => {
+    const h = Math.SQRT1_2;
+    const z = roots([1, 0, 0, 0, 1]).map(([s, y]) => `${s.toFixed(9)},${y.toFixed(9)}`).sort();
+    expect(z).toEqual([[h, h], [h, -h], [-h, h], [-h, -h]].map(([s, y]) => `${s.toFixed(9)},${y.toFixed(9)}`).sort());
+    expect(roots([4, 0, -5, 0, 1]).map((r) => r[0]).sort((a, b) => a - b)).toEqual([-2, -1, 1, 2].map((v) => expect.closeTo(v, 10)));
+    expect(roots([24, -50, 35, -10, 1]).map((r) => r[0]).sort((a, b) => a - b)).toEqual([1, 2, 3, 4].map((v) => expect.closeTo(v, 9)));
+  });
+
+  it("conjugate pairs are adjacent, upper member first", () => {
+    const rand = lcg(13);
+    for (let trial = 0; trial < 500; trial++) {
+      const f = Array.from({ length: 5 }, () => Math.floor(rand() * 21) - 10);
+      if (f[4] === 0) f[4] = 1;
+      const z = roots(f);
+      for (let k = 0; k < 4; k++) {
+        if (z[k][1] > 0) {
+          expect(z[k + 1][0]).toBe(z[k][0]);
+          expect(z[k + 1][1]).toBe(-z[k][1]);
+        }
+      }
+    }
+  });
+});
+
 describe("every solver", () => {
   it("returns d roots with small residual and the right sum and product (degrees 2–9)", () => {
     const rand = lcg(11);
@@ -67,14 +92,15 @@ describe("every solver", () => {
     }
   });
 
-  it("Aberth agrees with the closed forms", () => {
+  it("Aberth agrees with the closed forms (cubic, quartic)", () => {
     const rand = lcg(12);
-    for (let trial = 0; trial < 300; trial++) {
-      const f = Array.from({ length: 4 }, () => Math.floor(rand() * 21) - 10);
-      if (f[3] === 0) f[3] = 1;
+    for (let trial = 0; trial < 2000; trial++) {
+      const d = 3 + (trial % 2);
+      const f = Array.from({ length: d + 1 }, () => Math.floor(rand() * 21) - 10);
+      if (f[d] === 0) f[d] = 1;
       const exact = roots(f);
-      const re = new Float64Array(3);
-      const im = new Float64Array(3);
+      const re = new Float64Array(d);
+      const im = new Float64Array(d);
       solveAberth(f, re, im);
       for (const [s, y] of exact) {
         const nearest = Math.min(...Array.from(re, (r, i) => Math.hypot(r - s, im[i] - y)));

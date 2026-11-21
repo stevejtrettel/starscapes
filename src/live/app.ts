@@ -65,7 +65,7 @@ export function startExplorer(
     law: editLaw,
     faintest: (faintest) => edit({ ...recipe, faintest }),
     colouring: (colouring) => edit({ ...recipe, colouring }),
-    irreducible: (irreducible) => edit({ ...recipe, irreducible }),
+    irreducible: (irreducible) => edit({ ...recipe, spec: { ...recipe.spec, irreducible } }),
     even() {
       const { population } = starscape(recipe.spec);
       if (population) editLaw({ beta: evenBeta(recipe.spec.law.kappa, population) });

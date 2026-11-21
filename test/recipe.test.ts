@@ -31,8 +31,21 @@ describe("recipes", () => {
     }
   });
 
+  it("κ = D/3 gives γ = 1/3 in every degree", () => {
+    for (const name of ["quadratics", "cubics", "quartics"] as const) {
+      expect(zoomExponentOf(PRESETS[name].spec)).toBeCloseTo(1 / 3, 12);
+    }
+  });
+
+  it("a recipe carries the irreducible flag, and refuses it above degree 4", () => {
+    expect(parseRecipe(JSON.parse(JSON.stringify(PRESETS.quartics))).spec.irreducible).toBe(true);
+    expect(parseRecipe(JSON.parse(JSON.stringify(PRESETS.quadratics))).spec.irreducible).toBe(false);
+    const quintics = PRESETS.quintics;
+    expect(() => parseRecipe({ ...quintics, spec: { ...quintics.spec, irreducible: true } })).toThrow(/degree 4/);
+  });
+
   it("finite families do not rescale", () => {
-    expect(zoomExponentOf(PRESETS.quartics.spec)).toBe(0);
+    expect(zoomExponentOf(PRESETS["quartic-box"].spec)).toBe(0);
     expect(zoomExponentOf(PRESETS["cubic-plane"].spec)).toBe(0);
   });
 });

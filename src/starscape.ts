@@ -9,8 +9,10 @@
 import { ball, box } from "./catalogue/box.ts";
 import { cubics } from "./catalogue/cubics.ts";
 import { plane } from "./catalogue/plane.ts";
+import { quarticDeltaMin } from "./catalogue/quartics.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
-import { allCubics, allQuadratics } from "./catalogue/transport.ts";
+import { allCubics, allQuadratics, allQuartics, irreducibleCubics, irreducibleQuartics } from "./catalogue/transport.ts";
+import { isIrreducible } from "./poly/rationalRoot.ts";
 import { naturalRadius, type Population, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
 
 export type Family =
@@ -18,6 +20,8 @@ export type Family =
   | { readonly kind: "quadratics" }
   /** ax³ + bx² + cx + d, a ≥ 1 (a = 1 if monic). */
   | { readonly kind: "cubics"; readonly monic: boolean }
+  /** a₄x⁴ + … + a₀, a₄ ≥ 1, of shape |χ| ≤ tau (catalogue/quartics.ts); tau = 1: two real roots. */
+  | { readonly kind: "quartics"; readonly tau: number }
   /** Degree d, coefficients in [−H, H]. */
   | { readonly kind: "box"; readonly degree: number; readonly height: number; readonly monic: boolean }
   /** Degree d, Σ a_k² ≤ radius². */
@@ -33,6 +37,8 @@ export type Family =
 export interface StarscapeSpec {
   readonly family: Family;
   readonly law: SizeLaw;
+  /** Only the stars of polynomials irreducible over ℚ (degree ≤ 4). */
+  readonly irreducible?: boolean;
 }
 
 export interface Starscape {
@@ -50,14 +56,25 @@ export interface Starscape {
 
 export function starscape(spec: StarscapeSpec): Starscape {
   const { family, law } = spec;
+  const irreducible = spec.irreducible === true;
   const draw = (star: Star): number => radius(law, star);
+
+  /** The catalogue, or its irreducible stars by the exact test of poly/rationalRoot.ts. */
+  const sieve = (degree: number, all: Catalogue): Catalogue => {
+    if (!irreducible || degree === 2) return all; // a quadratic with a complex root is irreducible
+    if (degree > 4) throw new Error("irreducible stars are implemented only up to degree 4");
+    return (W, visit) =>
+      all(W, (star) => {
+        if (isIrreducible(star.f, star.s, star.y)) visit(star);
+      });
+  };
 
   /** radiusBound from the least δ an integer polynomial of the family can have. */
   const boundFrom = (deltaMin: (y: number) => number) => (y: number): number =>
     Math.min(law.cap * y, law.c * y ** law.beta * deltaMin(y) ** -law.kappa);
 
   /** A finite family: its catalogue does not depend on the size limit, which only filters. */
-  const finite = (degree: number, all: Catalogue): Starscape => ({
+  const finite = (degree: number, whole: Catalogue, all = sieve(degree, whole)): Starscape => ({
     spec,
     degree,
     population: null,
@@ -90,11 +107,25 @@ export function starscape(spec: StarscapeSpec): Starscape {
         stars: (rMin, rMax) => {
           const shell = shellOfRadii(law, rMin, rMax);
           // The monic cubics are invariant under translations only: no transport.
-          return family.monic ? cubics(shell, { monic: true }) : allCubics(shell);
+          if (family.monic) return sieve(3, cubics(shell, { monic: true }));
+          return irreducible ? irreducibleCubics(shell) : allCubics(shell);
         },
         radius: draw,
         // δ² = 4y[(b + 3as)² + a²y²] ≥ 4y³, and δ⁴ = 4|disc| ≥ 12.
         radiusBound: boundFrom((y) => Math.max(2 * y ** 1.5, 12 ** 0.25)),
+      };
+    case "quartics":
+      return {
+        spec,
+        degree: 4,
+        population: { power: 5, weight: 2 }, // (πτ/40)·Δ⁵ per unit hyperbolic area
+        stars: (rMin, rMax) => {
+          const shell = shellOfRadii(law, rMin, rMax);
+          return irreducible ? irreducibleQuartics(shell, family.tau) : allQuartics(shell, family.tau);
+        },
+        radius: draw,
+        // |2a₄y² − U| ≤ √P and |U| ≤ τ√P give δ = 2√P ≥ 4y²/(1 + τ).
+        radiusBound: boundFrom((y) => Math.max((4 * y * y) / (1 + family.tau), quarticDeltaMin(family.tau))),
       };
     case "box":
       return finite(family.degree, box(family.degree, family.height, { monic: family.monic }));

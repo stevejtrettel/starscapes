@@ -1,7 +1,7 @@
 /**
  * A recipe: everything that determines a picture, as plain data.
  *
- *     family + size law + colouring + filter + view.
+ *     family + size law + colouring + view.
  *
  * The explorer edits a recipe; "save" writes it out; the print script
  * reads it back. A recipe does not fix the resolution: the size constant
@@ -9,10 +9,7 @@
  * any other (style/sizeLaw.ts), so the same recipe is the same picture on
  * a screen and on a large print.
  */
-import { realRoot } from "./catalogue/cubics.ts";
-import type { Star } from "./catalogue/star.ts";
 import type { View } from "./fibre/window.ts";
-import { hasRationalRoot } from "./poly/rationalRoot.ts";
 import { type Family, type StarscapeSpec, starscape } from "./starscape.ts";
 import { COLOURINGS, type Colouring } from "./style/colour.ts";
 import { type SizeLaw, zoomExponent } from "./style/sizeLaw.ts";
@@ -24,8 +21,6 @@ export interface Recipe {
   readonly pixel: number;
   readonly view: View;
   readonly colouring: Colouring;
-  /** Cubics only: drop polynomials with a rational root. */
-  readonly irreducible: boolean;
   /** Radius, in pixels, of the faintest stars drawn. */
   readonly faintest: number;
 }
@@ -47,15 +42,7 @@ export function lawAt(recipe: Recipe, pixel: number): SizeLaw {
 
 /** The same picture with c quoted at another pixel size. */
 export function requote(recipe: Recipe, pixel: number): Recipe {
-  return { ...recipe, pixel, spec: { family: recipe.spec.family, law: lawAt(recipe, pixel) } };
-}
-
-/** The recipe's filter: which stars are drawn. */
-export function keeps(recipe: Recipe): (star: Star) => boolean {
-  if (recipe.irreducible && recipe.spec.family.kind === "cubics") {
-    return (star) => !hasRationalRoot(star.f, realRoot(star));
-  }
-  return () => true;
+  return { ...recipe, pixel, spec: { ...recipe.spec, law: lawAt(recipe, pixel) } };
 }
 
 /**
@@ -85,6 +72,9 @@ export function parseRecipe(value: unknown): Recipe {
       break;
     case "cubics":
       family = { kind: "cubics", monic: f.monic === true };
+      break;
+    case "quartics":
+      family = { kind: "quartics", tau: number(f.tau, "tau") };
       break;
     case "box":
       family = { kind: "box", degree: integer(f.degree, "degree"), height: integer(f.height, "height"), monic: f.monic === true };
@@ -119,13 +109,19 @@ export function parseRecipe(value: unknown): Recipe {
   const faintest = number(r.faintest, "faintest");
   if (!(view.height > 0 && pixel > 0 && faintest > 0)) fail("view height, pixel and faintest must be positive");
 
+  const checked: StarscapeSpec = { family, law, irreducible: spec.irreducible === true };
+  try {
+    starscape(checked);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
+
   return {
     title: typeof r.title === "string" ? r.title : "starscape",
-    spec: { family, law },
+    spec: checked,
     pixel,
     view,
     colouring,
-    irreducible: r.irreducible === true,
     faintest,
   };
 }

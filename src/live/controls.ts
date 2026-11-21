@@ -4,6 +4,7 @@
  * its own — it reports edits and is told what to display.
  */
 import type { Recipe } from "../recipe.ts";
+import { starscape } from "../starscape.ts";
 import { COLOURINGS, type Colouring } from "../style/colour.ts";
 import type { SizeLaw } from "../style/sizeLaw.ts";
 
@@ -72,7 +73,8 @@ export function createControls(panel: HTMLElement, recipe: Recipe, on: ControlHa
   const irreducible = document.createElement("input");
   irreducible.type = "checkbox";
   irreducible.addEventListener("change", () => on.irreducible(irreducible.checked));
-  if (recipe.spec.family.kind === "cubics") row("irreducible only", irreducible);
+  const degree = starscape({ ...recipe.spec, irreducible: false }).degree;
+  if (degree === 3 || degree === 4) row("irreducible only", irreducible);
 
   const buttons = document.createElement("div");
   buttons.append(
@@ -90,7 +92,7 @@ export function createControls(panel: HTMLElement, recipe: Recipe, on: ControlHa
       beta.set(law.beta);
       faintest.set(current.faintest);
       colouring.value = current.colouring;
-      irreducible.checked = current.irreducible;
+      irreducible.checked = current.spec.irreducible === true;
     },
   };
 }

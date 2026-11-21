@@ -16,7 +16,7 @@
  */
 import { degree, evalReal, type Poly } from "./poly.ts";
 
-/** |f(v)| ≤ TOUCH·Σ|f_k||v|^k at a critical point v counts as f(v) = 0. */
+/** |f(v)| ≤ TOUCH·Σ|f_k|·Rᵏ at a critical point v, R the interval's reach, counts as f(v) = 0. */
 const TOUCH = 1e-9;
 
 /**
@@ -41,6 +41,13 @@ export function realRoots(f: Poly, lo: number, hi: number, touches?: number[]): 
     critical = realRoots(df, lo, hi).filter((v) => v > lo && v < hi);
   }
 
+  // The size of f on the interval, against which "zero" is judged. (Not
+  // its size at the point in question: at a double root at 0 every term
+  // vanishes together, and a relative test there can never succeed.)
+  const reach = Math.max(Math.abs(lo), Math.abs(hi));
+  let size = 0;
+  for (let k = n; k >= 0; k--) size = size * reach + Math.abs(f[k]);
+
   const points = [lo, ...critical, hi];
   const values = points.map((x) => evalReal(f, x));
   const last = points.length - 1;
@@ -55,9 +62,7 @@ export function realRoots(f: Poly, lo: number, hi: number, touches?: number[]): 
       if (before * after < 0) roots.push(points[i + 1]); // odd multiplicity ≥ 3
       else touches?.push(points[i + 1]);
     } else if (touches && before * at >= 0 && at * after >= 0) {
-      let scale = 0;
-      for (let k = n; k >= 0; k--) scale = scale * Math.abs(points[i + 1]) + Math.abs(f[k]);
-      if (Math.abs(at) <= TOUCH * scale) touches.push(points[i + 1]);
+      if (Math.abs(at) <= TOUCH * size) touches.push(points[i + 1]);
     }
   }
   if (values[last] === 0 && hi > lo) roots.push(hi);

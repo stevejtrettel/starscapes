@@ -38,25 +38,41 @@
  * and what lets a window be split between them.
  */
 import { contains, type Window } from "../fibre/window.ts";
-import { type Position, positionOfCubic, positionOfQuadratic } from "../modular/domain.ts";
-import { act, compare, imageBox, inverse, type Matrix, multiply, S, T } from "../modular/mobius.ts";
+import { type Position, positionOfCubic, positionOfQuadratic, positionOfQuartic } from "../modular/domain.ts";
+import { act, compare, imageBox, inverse, type Matrix, multiply, S, substitute, T } from "../modular/mobius.ts";
 import { tilesMeeting } from "../modular/tiles.ts";
+import { discriminantExact } from "../poly/discriminant.ts";
+import { evalJet } from "../poly/poly.ts";
+import { isIrreducible } from "../poly/rationalRoot.ts";
+import { solve } from "../roots/solve.ts";
 import { CUBIC_DELTA_MIN, cubics, locateCubic } from "./cubics.ts";
 import { locateQuadratic, QUADRATIC_DELTA_MIN, quadratics } from "./quadratics.ts";
+import { quarticDeltaMin, quartics, quarticWithinShape } from "./quartics.ts";
 import { type Catalogue, clipToShell, delta, inShell, powerRange, type Shell, type Star } from "./star.ts";
+
+type VisitForm = (f: ArrayLike<number>, s: number, y: number, delta: number) => void;
 
 /** What transport needs to know about a family. */
 interface Reduced {
   readonly degree: number;
   readonly deltaMin: number;
   /**
-   * Every form of the family with root in R and δ in the invariant shell
-   * (exponent 0), as coefficients of a binary form of the family's degree
-   * (so the leading one may be 0), with its root s + iy and its δ.
+   * Every form of the family with root in R, δ in the invariant shell
+   * (exponent 0) and no root at infinity, with its root s + iy and its δ.
    */
-  forms(shell: Shell, R: Window, visit: (f: ArrayLike<number>, s: number, y: number, delta: number) => void): void;
-  position(f: ArrayLike<number>): Position;
-  /** Completes a star from its coefficients; false if it is not in the shell. */
+  forms(shell: Shell, R: Window, visit: VisitForm): void;
+  /**
+   * The same for the forms with a root at infinity, as coefficients of a
+   * binary form of the family's degree (so the leading ones are 0).
+   */
+  cuspForms?(shell: Shell, R: Window, visit: VisitForm): void;
+  /** Where the root s + iy of f lies with respect to 𝔉, exactly. */
+  position(f: ArrayLike<number>, s: number, y: number): Position;
+  /**
+   * Completes a star from its coefficients; false if it is not in the
+   * catalogue. On entry star.s, star.y hold the root's approximate
+   * position, which tells a quartic's two pairs of roots apart.
+   */
   locate(star: Star, shell: Shell): boolean;
 }
 
@@ -72,9 +88,9 @@ const degenerate = new Float64Array(4);
 const CUBIC: Reduced = {
   degree: 3,
   deltaMin: CUBIC_DELTA_MIN,
-  forms(shell, R, visit) {
-    cubics(shell)(R, (star) => visit(star.f, star.s, star.y, delta(star)));
-    // The forms with a root at infinity: y·Q with Q a quadratic, δ = δ(Q)/√y.
+  forms: (shell, R, visit) => cubics(shell)(R, (star) => visit(star.f, star.s, star.y, delta(star))),
+  // y·Q with Q a quadratic: δ = δ(Q)/√y.
+  cuspForms(shell, R, visit) {
     quadratics({ lo: shell.lo, hi: shell.hi, exponent: 0.5 })(R, (star) => {
       degenerate.set(star.f);
       degenerate[3] = 0;
@@ -85,6 +101,69 @@ const CUBIC: Reduced = {
   locate: locateCubic,
 };
 
+const lowered = new Float64Array(5);
+const quarticRe = new Float64Array(4);
+const quarticIm = new Float64Array(4);
+const quarticJet = new Float64Array(4);
+
+/**
+ * Quartics of shape |χ| ≤ τ. A reduced quartic form may have one root at
+ * infinity (y times a cubic) or two (y² times a quadratic); in terms of
+ * the formulas of quartics.ts with a₄ = 0, resp. a₄ = a₃ = 0, these have
+ * δ = δ(cubic)/√y, resp. δ(quadratic)/y and χ = ±1.
+ */
+const quarticFamily = (tau: number): Reduced => ({
+  degree: 4,
+  deltaMin: quarticDeltaMin(tau),
+  forms(shell, R, visit) {
+    // χ is decided on the carried star, by `locate`; here the bound is only
+    // a cover, widened so that a form with |χ| = τ exactly is not lost to
+    // rounding (x⁴ − x³ + 2x² − x + 1 = (x² + 1)(x² − x + 1) has χ = 2).
+    const cover = tau * (1 + 1e-9);
+    quartics(shell, { tau: cover })(R, (star) => visit(star.f, star.s, star.y, delta(star)));
+  },
+  cuspForms(shell, R, visit) {
+    const cover = tau * (1 + 1e-9);
+    cubics({ lo: shell.lo, hi: shell.hi, exponent: 0.5 })(R, (star) => {
+      // U = a₂ + 3a₃s, P = y²a₃² + U² ≥ U²: |χ| ≤ 1 always.
+      const U = star.f[2] + 3 * star.f[3] * star.s;
+      const rootP = Math.hypot(star.y * star.f[3], U);
+      if (Math.abs(U) > cover * rootP) return;
+      lowered.set(star.f);
+      lowered[4] = 0;
+      visit(lowered, star.s, star.y, 2 * rootP);
+    });
+    if (tau >= 1) {
+      quadratics({ lo: shell.lo, hi: shell.hi, exponent: 1 })(R, (star) => {
+        lowered.set(star.f);
+        lowered[3] = lowered[4] = 0;
+        visit(lowered, star.s, star.y, 2 * star.f[2]);
+      });
+    }
+  },
+  position: positionOfQuartic,
+  locate(star, shell) {
+    // The root of the carried quartic nearest to where the Möbius map put it.
+    solve(star.f, quarticRe, quarticIm);
+    let best = -1;
+    let distance = Infinity;
+    for (let i = 0; i < 4; i++) {
+      const gap = Math.hypot(quarticRe[i] - star.s, quarticIm[i] - star.y);
+      if (quarticIm[i] > 0 && gap < distance) {
+        best = i;
+        distance = gap;
+      }
+    }
+    if (best < 0) return false;
+    star.s = quarticRe[best];
+    star.y = quarticIm[best];
+    evalJet(star.f, star.s, star.y, quarticJet);
+    star.slope = Math.hypot(quarticJet[2], quarticJet[3]);
+    if (star.slope < 1e-3 && discriminantExact(star.f) === 0n) return false;
+    return inShell(shell, star.slope / star.y, star.y) && quarticWithinShape(star, tau);
+  },
+});
+
 /** The stabilisers in PSL₂(ℤ) of the two elliptic points of 𝔉. */
 const ST = multiply(S, T);
 const STABILISER = { i: [S], rho: [ST, multiply(ST, ST)] } as const;
@@ -94,36 +173,12 @@ function keepsElliptic(gamma: Matrix, position: "i" | "rho"): boolean {
   return STABILISER[position].every((g) => compare(gamma, multiply(gamma, g)) < 0);
 }
 
-/**
- * out(x) = (cx + d)ⁿ·f((ax + b)/(cx + d)) for a form f of degree n: the
- * form whose roots are m⁻¹ of the roots of f.
- */
-function substitute(f: ArrayLike<number>, m: Matrix, out: Float64Array): void {
-  const n = f.length - 1;
-  const [a, b, c, d] = m;
-  out.fill(0);
-  for (let k = 0; k <= n; k++) {
-    if (f[k] === 0) continue;
-    // term = (ax + b)ᵏ (cx + d)ⁿ⁻ᵏ, built one linear factor at a time.
-    term.fill(0, 0, n + 1);
-    term[0] = 1;
-    for (let j = 0; j < n; j++) {
-      const lead = j < k ? a : c;
-      const constant = j < k ? b : d;
-      for (let i = j + 1; i >= 1; i--) term[i] = term[i] * constant + term[i - 1] * lead;
-      term[0] *= constant;
-    }
-    for (let i = 0; i <= n; i++) out[i] += f[k] * term[i];
-  }
-}
-const term = new Float64Array(8);
-
 /** Above this the coefficients of a carried form are no longer exact in float64. */
 const EXACT = 2 ** 53;
 /** A cell is fine enough when the carried height varies by at most this factor over it. */
 const HEIGHT_RATIO = 1.5;
 
-function transported(family: Reduced, shell: Shell): Catalogue {
+function transported(family: Reduced, shell: Shell, cusps = true): Catalogue {
   const e = shell.exponent;
   return (window: Window, visit): void => {
     const W = clipToShell(window, shell, family.deltaMin);
@@ -168,9 +223,9 @@ function transported(family: Reduced, shell: Shell): Catalogue {
         // The invariant shell covering the cell's stars, widened against rounding.
         const [low, high] = powerRange(e, y0, y1);
         const cover = { lo: shell.lo * low * (1 - 1e-9), hi: shell.hi * high * (1 + 1e-9), exponent: 0 };
-        family.forms(cover, cell, (f, s, y, del) => {
+        const carry: VisitForm = (f, s, y, del) => {
           if ((openRight && s >= cell.s1) || (openTop && y >= cell.y1)) return;
-          const position = family.position(f);
+          const position = family.position(f, s, y);
           if (position === "outside") return;
           if (position !== "inside" && !keepsElliptic(gamma, position)) return;
 
@@ -193,8 +248,12 @@ function transported(family: Reduced, shell: Shell): Catalogue {
             if (inShell(shell, del, star.y) && contains(W, star.s, star.y)) visit(star);
             return;
           }
+          act(gamma, s, y, point);
+          [star.s, star.y] = point;
           if (family.locate(star, shell) && contains(W, star.s, star.y)) visit(star);
-        });
+        };
+        family.forms(cover, cell, carry);
+        if (cusps) family.cuspForms?.(cover, cell, carry);
       };
       scan(pullback, false, false, 0);
     }
@@ -212,13 +271,13 @@ function crossover(shell: Shell, degree: number): number {
   if (power <= 0) return 0.25;
   return Math.min(1, CROSSOVER[degree] * shell.hi ** (-1 / power));
 }
-const CROSSOVER: Record<number, number> = { 2: 0.02, 3: 4 };
+const CROSSOVER: Record<number, number> = { 2: 0.02, 3: 4, 4: Infinity };
 
 /** The direct enumerator above the crossover height, transport below it. */
-function hybrid(family: Reduced, direct: (shell: Shell) => Catalogue, shell: Shell): Catalogue {
+function hybrid(family: Reduced, direct: (shell: Shell) => Catalogue, shell: Shell, cusps = true): Catalogue {
   const cut = crossover(shell, family.degree);
   const above = direct(shell);
-  const below = transported(family, shell);
+  const below = transported(family, shell, cusps);
   return (W, visit) => {
     if (W.y1 > cut) {
       const upper = { ...W, y0: Math.max(W.y0, cut) };
@@ -239,8 +298,36 @@ function hybrid(family: Reduced, direct: (shell: Shell) => Catalogue, shell: She
 export const quadraticsBySymmetry = (shell: Shell): Catalogue => transported(QUADRATIC, shell);
 /** All integer cubics in a shell, by symmetry (identical to `cubics`). */
 export const cubicsBySymmetry = (shell: Shell): Catalogue => transported(CUBIC, shell);
+/** Quartics of shape |χ| ≤ τ in a shell, by symmetry (identical to `quartics`). */
+export const quarticsBySymmetry = (shell: Shell, tau: number): Catalogue => transported(quarticFamily(tau), shell);
 
 /** All integer quadratics in a shell, each part of the window by the method that suits it. */
 export const allQuadratics = (shell: Shell): Catalogue => hybrid(QUADRATIC, quadratics, shell);
 /** All integer cubics in a shell, each part of the window by the method that suits it. */
 export const allCubics = (shell: Shell): Catalogue => hybrid(CUBIC, (s) => cubics(s), shell);
+/** Quartics of shape |χ| ≤ τ in a shell, each part of the window by the method that suits it. */
+export const allQuartics = (shell: Shell, tau: number): Catalogue =>
+  hybrid(quarticFamily(tau), (s) => quartics(s, { tau }), shell);
+
+/**
+ * The irreducible stars. A reduced form with a root at infinity is
+ * carried to a polynomial with a rational root — at the cusp of the tile
+ * — so those forms need not be enumerated at all; what remains is tested
+ * exactly (poly/rationalRoot.ts).
+ *
+ * The saving is large, because the cusp of a tile holds reducible stars
+ * and nothing else. For cubics they are as many as the tile's irreducible
+ * ones (reducible classes of binary cubic forms with |disc| ≤ X number
+ * ≍ X, as the irreducible do). For quartics they are infinitely many: the
+ * forms y²·Q, carried to (qx − p)²·Q(x), have δ = 2·(leading coefficient
+ * of Q) at every height. Near the real axis, where the tiles are small
+ * and wholly in view, they are most of the catalogue — and of the work.
+ */
+const irreducibleOf = (some: Catalogue): Catalogue => (W, visit) =>
+  some(W, (star) => {
+    if (isIrreducible(star.f, star.s, star.y)) visit(star);
+  });
+export const irreducibleCubics = (shell: Shell): Catalogue =>
+  irreducibleOf(hybrid(CUBIC, (s) => cubics(s), shell, false));
+export const irreducibleQuartics = (shell: Shell, tau: number): Catalogue =>
+  irreducibleOf(hybrid(quarticFamily(tau), (s) => quartics(s, { tau }), shell, false));

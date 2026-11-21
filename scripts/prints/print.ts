@@ -10,8 +10,8 @@
  *          c=  kappa=  beta=             override the size law r = c·y^β·δ^(−κ);
  *                                        c is taken as quoted at this image's pixel size
  *          faintest=0.3                  radius in pixels of the smallest stars
- *          colour=ink|leading|discriminant|height|real-root
- *          irreducible=0|1               cubics: drop those with a rational root
+ *          colour=ink|leading|discriminant|height|real-root|shape
+ *          irreducible=0|1               only polynomials irreducible over ℚ (degree ≤ 4)
  *          compositing=opaque|additive
  *          degree=4  H=6  monic=0        for `box`
  *          out=outputs/<name>.png
@@ -41,7 +41,6 @@ function load(): Recipe {
       pixel: view.height / 1000,
       view,
       colouring: "ink",
-      irreducible: false,
       faintest: 0.3,
     };
   }
@@ -64,10 +63,10 @@ recipe = parseRecipe({
   spec: {
     family: recipe.spec.family,
     law: { c: num("c", law.c), beta: num("beta", law.beta), kappa: num("kappa", law.kappa), cap: law.cap },
+    irreducible: num("irreducible", recipe.spec.irreducible ? 1 : 0) === 1,
   },
   faintest: num("faintest", recipe.faintest),
   colouring: arg.colour ?? recipe.colouring,
-  irreducible: num("irreducible", recipe.irreducible ? 1 : 0) === 1,
 });
 
 const started = performance.now();

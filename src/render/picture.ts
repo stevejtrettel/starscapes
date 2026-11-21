@@ -12,7 +12,7 @@
  */
 import type { Star } from "../catalogue/star.ts";
 import { type View, type Window, windowOf } from "../fibre/window.ts";
-import { keeps, lawAt, type Recipe } from "../recipe.ts";
+import { lawAt, type Recipe } from "../recipe.ts";
 import { type Starscape, starscape } from "../starscape.ts";
 import { paint } from "../style/colour.ts";
 import { type Compositing, createRaster, depositDisc, develop } from "./raster.ts";
@@ -134,12 +134,11 @@ export function renderRecipe(
   size: { width: number; height?: number; compositing?: Compositing; supersample?: number },
 ): Picture {
   const height = size.height ?? size.width;
-  const scape = starscape({ family: recipe.spec.family, law: lawAt(recipe, recipe.view.height / height) });
+  const scape = starscape({ ...recipe.spec, law: lawAt(recipe, recipe.view.height / height) });
   return renderPicture(scape, recipe.view, {
     ...size,
     height,
     faintest: recipe.faintest,
     colour: paint(recipe.colouring),
-    keep: keeps(recipe),
   });
 }
