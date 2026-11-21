@@ -5,7 +5,9 @@
  *
  * preset   one of the names in src/presets.ts (quadratics, cubics,
  *          monic-cubics, quartics, …), or `box` for any degree and height
- * options  c=  kappa=  beta=             override the size law r = c·y^β·δ^(−κ)
+ * options  c=  kappa=  beta=             override the size law r = c·y^β·δ^(−κ);
+ *                                        without c=, the preset's c follows its
+ *                                        zoom law to the print's pixel size
  *          centre=0,1.1  span=2.6        the view (span = its height in ℂ)
  *          width=1600  height=<width>    image size in pixels
  *          faintest=0.25                 radius in pixels of the smallest stars
@@ -17,7 +19,7 @@
 import { realRoot } from "../../src/catalogue/cubics.ts";
 import type { Star } from "../../src/catalogue/star.ts";
 import { hasRationalRoot } from "../../src/poly/rationalRoot.ts";
-import { PRESETS, type Preset } from "../../src/presets.ts";
+import { lawAt, PRESETS, type Preset } from "../../src/presets.ts";
 import { renderPicture } from "../../src/render/picture.ts";
 import { writePng } from "../../src/render/png.ts";
 import { starscape } from "../../src/starscape.ts";
@@ -42,18 +44,23 @@ const presets: Record<string, Preset> = {
 const preset = presets[name];
 if (!preset) throw new Error(`unknown preset "${name}"; one of ${Object.keys(presets).join(", ")}`);
 
-const { law, family } = preset.spec;
+const { family } = preset.spec;
+const centre = arg.centre ? (arg.centre.split(",").map(Number) as [number, number]) : preset.home.centre;
+const view = { centre, height: num("span", preset.home.height) };
+const width = num("width", 1600);
+const height = num("height", width);
+
+const law = lawAt(preset, view.height / height);
 const scape = starscape({
   family,
   law: { c: num("c", law.c), beta: num("beta", law.beta), kappa: num("kappa", law.kappa), cap: law.cap },
 });
-const centre = arg.centre ? (arg.centre.split(",").map(Number) as [number, number]) : preset.home.centre;
 const irreducible = family.kind === "cubics" && num("irreducible", preset.irreducible ? 1 : 0) === 1;
 
 const started = performance.now();
-const picture = renderPicture(scape, { centre, height: num("span", preset.home.height) }, {
-  width: num("width", 1600),
-  ...("height" in arg ? { height: Number(arg.height) } : {}),
+const picture = renderPicture(scape, view, {
+  width,
+  height,
   faintest: num("faintest", 0.25),
   compositing: arg.compositing === "additive" ? "additive" : "opaque",
   ...(irreducible ? { keep: (star: Star) => !hasRationalRoot(star.f, realRoot(star)) } : {}),

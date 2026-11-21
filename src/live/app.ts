@@ -4,15 +4,11 @@
  * of the new window; until they arrive the discs already on the GPU are
  * simply re-projected.
  *
- * Under zoom the size constant follows c = c₀·(height/home height)^γ with
- * the family's zoom exponent γ (style/sizeLaw.ts), which holds the ink
- * constant when the law's ink diverges and is 1 (pure magnification) when
- * it converges.
+ * Under zoom the size constant follows the preset's zoom law (presets.ts,
+ * `lawAt`), which holds the ink constant when the law's ink diverges.
  */
 import type { View } from "../fibre/window.ts";
-import type { Preset } from "../presets.ts";
-import { starscape } from "../starscape.ts";
-import { zoomExponent } from "../style/sizeLaw.ts";
+import { lawAt, type Preset } from "../presets.ts";
 import { pan, zoomAt } from "./camera.ts";
 import { createDiscRenderer } from "./gl/discs.ts";
 import type { RenderRequest, WorkerMessage } from "./protocol.ts";
@@ -25,9 +21,6 @@ export function startExplorer(canvas: HTMLCanvasElement, hud: HTMLElement, prese
   if (!gl) throw new Error("WebGL2 is not available");
   const renderer = createDiscRenderer(gl);
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
-
-  const { population } = starscape(preset.spec);
-  const gamma = population === null ? 0 : zoomExponent(preset.spec.law, population);
 
   let view: View = preset.home;
   let generation = 0;
@@ -60,7 +53,7 @@ export function startExplorer(canvas: HTMLCanvasElement, hud: HTMLElement, prese
     generation++;
     anchor = view.centre;
     status = "computing…";
-    const law = { ...preset.spec.law, c: preset.spec.law.c * (view.height / preset.home.height) ** gamma };
+    const law = lawAt(preset, view.height / canvas.clientHeight);
     const message: RenderRequest = {
       generation,
       spec: { family: preset.spec.family, law },

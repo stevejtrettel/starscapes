@@ -165,6 +165,15 @@ uses r_min proportional to p, so it is a *magnitude-limited* catalogue:
 every star at least that large, none smaller. Shells with abutting bounds
 partition a catalogue, which is how the explorer sends large stars first.
 
+A disc centred outside the window can reach into it, so the stars of a
+picture are sought in the window enlarged by a margin. The margin is
+taken shell by shell — the stars with r ∈ [ρ, 2ρ) in the window enlarged
+by 2ρ (`render/picture.ts`, `plan`) — because one margin for all, the
+largest radius, would at deep zoom enumerate a region many times the
+view. With it, and c ∝ p^γ (§6), the number of stars per view is constant
+under zoom **[tested; measured 41.7–42.5 thousand for quadratics from 1×
+to 10⁴×]**.
+
 **Finiteness.** For fixed z, f′(z) is a real-linear function of the head,
 ℝ^(d−1) → ℂ. For d ≤ 3 it is injective, δ is a norm on heads, and a shell
 contains finitely many heads over a compact window (one interval for

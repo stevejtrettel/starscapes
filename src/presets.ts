@@ -3,8 +3,8 @@
  * only irreducible polynomials. Shared by the explorer and the print script.
  */
 import type { View } from "./fibre/window.ts";
-import type { StarscapeSpec } from "./starscape.ts";
-import { euclidean, hyperbolic } from "./style/sizeLaw.ts";
+import { type StarscapeSpec, starscape } from "./starscape.ts";
+import { euclidean, hyperbolic, type SizeLaw, zoomExponent } from "./style/sizeLaw.ts";
 
 export interface Preset {
   readonly title: string;
@@ -93,3 +93,20 @@ export const PRESETS = {
 } as const satisfies Record<string, Preset>;
 
 export type PresetName = keyof typeof PRESETS;
+
+/** A preset's size constant c is quoted for its home view drawn this many pixels tall. */
+const REFERENCE_HEIGHT = 1000;
+
+/**
+ * The preset's law at a given pixel size (in ℂ): c ∝ pixel^γ with the
+ * family's zoom exponent γ (style/sizeLaw.ts), so that a zoomed view or a
+ * larger print carries the same ink as the home view rather than
+ * saturating. Laws whose ink converges, and finite families, are left
+ * unchanged (γ = 0).
+ */
+export function lawAt(preset: Preset, pixel: number): SizeLaw {
+  const { law } = preset.spec;
+  const { population } = starscape(preset.spec);
+  const gamma = population === null ? 0 : zoomExponent(law, population);
+  return { ...law, c: law.c * (pixel / (preset.home.height / REFERENCE_HEIGHT)) ** gamma };
+}

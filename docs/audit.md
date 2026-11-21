@@ -84,7 +84,13 @@ Each was checked, not only argued.
    any area. This is why prints changed character with the "dust factor"
    and why near-axis populations "flooded" (notebook E2). Small discs now
    deposit their area.
-6. **Bounds widened by an absolute 10⁻⁹** regardless of magnitude; now
+6. **One margin for every star.** The window was enlarged by the largest
+   possible radius (c/2) for all stars, though only the few largest need
+   it. As the view shrinks faster than c, the enumerated region outgrows
+   the view: 3.4 times its area at 500×, 49 times at 10⁴×, so the "flat"
+   population of notebook E9 was not flat. Margins are now per size shell,
+   and the population per view is constant to three digits.
+7. **Bounds widened by an absolute 10⁻⁹** regardless of magnitude; now
    relative, with exact membership decided after solving.
 
 ## What is new
