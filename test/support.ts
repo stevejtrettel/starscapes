@@ -1,6 +1,7 @@
 /** Shared test helpers: seeded randomness and a brute-force star oracle. */
 import type { Star } from "../src/catalogue/star.ts";
 import { contains, type Window } from "../src/fibre/window.ts";
+import { discriminantExact } from "../src/poly/discriminant.ts";
 import { evalJet, type Poly } from "../src/poly/poly.ts";
 import { solve } from "../src/roots/solve.ts";
 
@@ -44,7 +45,9 @@ export function bruteStars(
         star.s = re[i];
         star.y = im[i];
         star.slope = Math.hypot(jet[2], jet[3]);
-        if (star.slope > 0 && keep(star)) found.add(starKey(star));
+        // A star needs f′(z) ≠ 0; near zero, decide exactly (disc f = 0).
+        if (star.slope < 1e-3 && discriminantExact(f) === 0n) continue;
+        if (keep(star)) found.add(starKey(star));
       }
     }
     let k = 0;
