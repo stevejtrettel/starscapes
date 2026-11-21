@@ -18,19 +18,28 @@
  * of Harriss–Stange–Trettel (hyperbolic radius ∝ |disc|^(−1/d)) is β = 1
  * with κ = 1 for quadratics and κ = 4/3 for cubics.
  *
- * INK AND THE CRITICAL EXPONENT. Let a family's population grow like
- * #{δ ≤ Δ} ∝ Δ^D per unit area (D = 3 for quadratics and for monic
- * cubics, D = 4 for all cubics; docs/mathematics.md §3). The area covered
- * by the stars with δ ≤ Δ is then ∝ c²·∫^Δ δ^(D−1−2κ) dδ:
+ * INK. Suppose the family's population grows like
+ *
+ *     #{stars with δ ≤ Δ} ≈ const · Δ^D · y^(−w)      per unit Euclidean area
+ *
+ * (quadratics: D = 3, w = 2; all cubics: D = 4, w = 2; monic cubics:
+ * D = 3, w = 1/2 — docs/mathematics.md §3). The fraction of the page
+ * covered by the stars with δ ≤ Δ at height y is then
+ *
+ *     ink(y; Δ) ∝ c² · y^(2β−w) · ∫^Δ δ^(D−1−2κ) dδ.
  *
  *   κ > D/2   the ink converges: the picture has a limit as ever smaller
- *             stars are added, and zooming is magnification;
- *   κ = D/2   logarithmic growth — each octave of δ contributes equally
- *             (the exponent matched to Sprindžuk's theorem, HST Fig. 35);
- *   κ < D/2   ink ∝ c²·Δ^(D−2κ) diverges. Drawing the stars visible at
- *             pixel size p means Δ ∝ (c/p)^(1/κ), so ink ∝ c^(D/κ)·p^(2−D/κ):
- *             the picture saturates under zoom unless c shrinks with it,
- *             c ∝ p^γ with γ = 1 − 2κ/D.
+ *             stars are added, and zooming is magnification.
+ *   κ = D/2   logarithmic growth, each octave of δ contributing equally
+ *             (the exponent matched to Sprindžuk's theorem, HST Fig. 35).
+ *   κ < D/2   ink ∝ c²·y^(2β−w)·Δ^(D−2κ) diverges. Drawing the stars whose
+ *             radius is at least p (a pixel) means Δ = (c·y^β/p)^(1/κ), so
+ *
+ *                 ink ∝ c^(D/κ) · p^(2−D/κ) · y^(βD/κ − w).
+ *
+ *             Two consequences. Under zoom the picture saturates unless c
+ *             shrinks with the pixel, c ∝ p^γ with γ = 1 − 2κ/D. And the
+ *             ink is even down the page exactly when β = wκ/D.
  */
 import { delta, type Shell, type Star } from "../catalogue/star.ts";
 
@@ -75,10 +84,21 @@ export function shellOfRadii(law: SizeLaw, rMin: number, rMax = Infinity): Shell
   };
 }
 
+/** #{δ ≤ Δ} ≈ const·Δ^power·y^(−weight) per unit Euclidean area. */
+export interface Population {
+  readonly power: number;
+  readonly weight: number;
+}
+
 /**
  * The exponent γ for which c ∝ (pixel size)^γ keeps the ink of a
  * magnitude-limited picture constant under zoom; 0 when the ink converges.
  */
-export function zoomExponent(law: SizeLaw, growth: number): number {
-  return Math.max(0, 1 - (2 * law.kappa) / growth);
+export function zoomExponent(law: SizeLaw, population: Population): number {
+  return Math.max(0, 1 - (2 * law.kappa) / population.power);
+}
+
+/** The β for which a magnitude-limited picture is evenly inked down the page: wκ/D. */
+export function evenBeta(kappa: number, population: Population): number {
+  return (population.weight * kappa) / population.power;
 }

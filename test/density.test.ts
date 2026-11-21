@@ -43,6 +43,16 @@ describe("invariant truncations have constant density per hyperbolic area", () =
   });
 });
 
+describe("monic cubics", () => {
+  it("#{δ ≤ Δ} ≈ (Δ³/3)·∫ y^(−1/2) dA", () => {
+    const W: Window = { s0: 0.1, s1: 0.9, y0: 0.5, y1: 1.2 };
+    const Delta = 70;
+    const n = count(cubics({ lo: 0, hi: Delta, exponent: 0 }, { monic: true }), W);
+    const integral = (W.s1 - W.s0) * 2 * (Math.sqrt(W.y1) - Math.sqrt(W.y0));
+    expect(Math.abs(n / ((Delta ** 3 / 3) * integral) - 1)).toBeLessThan(0.03);
+  });
+});
+
 describe("Davenport–Shintani", () => {
   it("GL₂(ℤ)-classes of irreducible binary cubic forms with −X < disc < 0", () => {
     // Each class has exactly one representative with a > 0 whose complex

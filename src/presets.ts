@@ -22,6 +22,13 @@ export const PRESETS = {
     home: { centre: [0, 1.1], height: 2.6 },
     irreducible: false,
   },
+  "quadratics-even": {
+    title: "integer quadratics, evenly inked",
+    // Radius c·y^(2/3)/√|disc|: β = wκ/D = 2/3 evens the ink down the page.
+    spec: { family: { kind: "quadratics" }, law: { c: 0.035, beta: 2 / 3, kappa: 1, cap: 0.5 } },
+    home: { centre: [0, 1.1], height: 2.6 },
+    irreducible: false,
+  },
   cubics: {
     title: "integer cubics",
     // Hyperbolic radius ∝ |disc|^(−1/3), the root-discriminant law (κ = 4/3).
@@ -29,9 +36,16 @@ export const PRESETS = {
     home: { centre: [0, 1.0], height: 2.4 },
     irreducible: true,
   },
+  "cubics-even": {
+    title: "integer cubics, evenly inked",
+    // The same κ = 4/3 with β = wκ/D = 2/3.
+    spec: { family: { kind: "cubics", monic: false }, law: { c: 0.04, beta: 2 / 3, kappa: 4 / 3, cap: 0.5 } },
+    home: { centre: [0, 1.0], height: 2.4 },
+    irreducible: true,
+  },
   "monic-cubics": {
     title: "monic integer cubics",
-    // Euclidean radius ∝ |disc|^(−1/4): even ink across the page.
+    // Euclidean radius c/δ = c/(4|disc|)^(1/4): nearly even (ink ∝ y^(−1/2)).
     spec: { family: { kind: "cubics", monic: true }, law: euclidean(0.028, 1) },
     home: { centre: [0, 1.0], height: 2.4 },
     irreducible: true,

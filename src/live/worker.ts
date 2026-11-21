@@ -73,7 +73,7 @@ async function render(request: RenderRequest): Promise<void> {
   // Radii rMin·2ᵏ, descending from the largest radius any star here can have.
   // A finite family has no shell structure worth exploiting: one pass.
   const top = scape.radiusBound(W.y1);
-  const shells = scape.growth === null ? 1 : Math.max(1, Math.ceil(Math.log2(top / rMin)));
+  const shells = scape.population === null ? 1 : Math.max(1, Math.ceil(Math.log2(top / rMin)));
   for (let k = shells - 1; k >= 0; k--) {
     const lo = rMin * 2 ** k;
     scape.stars(lo, k === shells - 1 ? Infinity : 2 * lo)(W, send);

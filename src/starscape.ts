@@ -10,7 +10,7 @@ import { box } from "./catalogue/box.ts";
 import { cubics } from "./catalogue/cubics.ts";
 import { quadratics } from "./catalogue/quadratics.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
-import { naturalRadius, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
+import { naturalRadius, type Population, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
 
 export type Family =
   /** ax² + bx + c, a ≥ 1. */
@@ -28,11 +28,8 @@ export interface StarscapeSpec {
 export interface Starscape {
   readonly spec: StarscapeSpec;
   readonly degree: number;
-  /**
-   * D, where the population grows like #{δ ≤ Δ} ∝ Δ^D (style/sizeLaw.ts);
-   * null for a finite family.
-   */
-  readonly growth: number | null;
+  /** How the family's population grows (style/sizeLaw.ts); null for a finite family. */
+  readonly population: Population | null;
   /** Every star with rMin ≤ natural radius < rMax. */
   stars(rMin: number, rMax?: number): Catalogue;
   /** The radius at which a star is drawn. */
@@ -54,7 +51,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
       return {
         spec,
         degree: 2,
-        growth: 3,
+        population: { power: 3, weight: 2 }, // Δ³/6 per unit hyperbolic area
         stars: (rMin, rMax) => quadratics(shellOfRadii(law, rMin, rMax)),
         radius: draw,
         // δ = 2ay ≥ 2y, and δ = √|disc| ≥ √3.
@@ -64,7 +61,8 @@ export function starscape(spec: StarscapeSpec): Starscape {
       return {
         spec,
         degree: 3,
-        growth: family.monic ? 3 : 4,
+        // All cubics: πΔ⁴/16 per unit hyperbolic area. Monic: Δ³/(3√y) per unit area.
+        population: family.monic ? { power: 3, weight: 0.5 } : { power: 4, weight: 2 },
         stars: (rMin, rMax) => cubics(shellOfRadii(law, rMin, rMax), { monic: family.monic }),
         radius: draw,
         // δ² = 4y[(b + 3as)² + a²y²] ≥ 4y³, and δ⁴ = 4|disc| ≥ 12.
@@ -75,7 +73,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
       return {
         spec,
         degree: family.degree,
-        growth: null,
+        population: null,
         stars: (rMin, rMax = Infinity) => (W, visit) =>
           all(W, (star) => {
             const r = naturalRadius(law, star);

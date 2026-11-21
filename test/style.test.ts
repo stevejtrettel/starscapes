@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Window } from "../src/fibre/window.ts";
 import { createRaster, depositDisc, develop } from "../src/render/raster.ts";
 import { type Family, starscape } from "../src/starscape.ts";
-import { euclidean, hyperbolic, naturalRadius, type SizeLaw, zoomExponent } from "../src/style/sizeLaw.ts";
+import { euclidean, evenBeta, hyperbolic, naturalRadius, type SizeLaw, zoomExponent } from "../src/style/sizeLaw.ts";
 
 const W: Window = { s0: 0.1, s1: 0.5, y0: 0.7, y1: 1.1 };
 
@@ -57,13 +57,13 @@ describe("ink", () => {
   });
 
   it("c ∝ (pixel size)^γ, γ = 1 − 2κ/D, holds the ink constant under zoom", () => {
-    const cases: Array<[Family, SizeLaw, number]> = [
-      [{ kind: "quadratics" }, hyperbolic(0.03), 3],
-      [{ kind: "cubics", monic: true }, euclidean(0.025), 3],
-      [{ kind: "cubics", monic: false }, hyperbolic(0.035, 4 / 3), 4],
+    const cases: Array<[Family, SizeLaw]> = [
+      [{ kind: "quadratics" }, hyperbolic(0.03)],
+      [{ kind: "cubics", monic: true }, euclidean(0.025)],
+      [{ kind: "cubics", monic: false }, hyperbolic(0.035, 4 / 3)],
     ];
-    for (const [family, law, growth] of cases) {
-      const gamma = zoomExponent(law, growth);
+    for (const [family, law] of cases) {
+      const gamma = zoomExponent(law, starscape({ family, law }).population!);
       expect(gamma).toBeCloseTo(1 / 3, 12);
       const inks = [1, 1 / 6, 1 / 36].map((zoom) => {
         const h = 0.4 * zoom;
@@ -76,6 +76,44 @@ describe("ink", () => {
       expect(inks[1] / inks[0]).toBeLessThan(1.6);
       expect(inks[2] / inks[0]).toBeGreaterThan(0.6);
       expect(inks[2] / inks[0]).toBeLessThan(1.6);
+    }
+  });
+});
+
+describe("even ink", () => {
+  /** Ink in a thin strip at height y, for a magnitude limit rMin. */
+  function inkAt(family: Family, law: SizeLaw, y: number, rMin: number): number {
+    const scape = starscape({ family, law });
+    const strip: Window = { s0: 0.11, s1: 0.71, y0: y * 0.95, y1: y * 1.05 };
+    let area = 0;
+    scape.stars(rMin)(strip, (star) => {
+      area += Math.PI * naturalRadius(law, star) ** 2;
+    });
+    return area / ((strip.s1 - strip.s0) * (strip.y1 - strip.y0));
+  }
+
+  it("β = wκ/D evens the ink down the page; other β do not", () => {
+    // [family, Δ]: the magnitude limit is set so that δ reaches Δ at height 1.
+    const families: Array<[Family, number]> = [
+      [{ kind: "quadratics" }, 500],
+      [{ kind: "cubics", monic: true }, 90],
+      [{ kind: "cubics", monic: false }, 36],
+    ];
+    for (const [family, Delta] of families) {
+      const rMin = 0.01 / Delta;
+      const population = starscape({ family, law: hyperbolic(1) }).population!;
+      const kappa = 1;
+      const even: SizeLaw = { c: 0.01, beta: evenBeta(kappa, population), kappa, cap: 1 };
+      const [low, high] = [0.3, 1.5];
+      const ratio = inkAt(family, even, high, rMin) / inkAt(family, even, low, rMin);
+      expect(ratio, JSON.stringify(family)).toBeGreaterThan(0.75);
+      expect(ratio, JSON.stringify(family)).toBeLessThan(1.3);
+      // The hyperbolic law (β = 1) is predicted to vary like y^(D/κ − w).
+      const hyp: SizeLaw = { c: 0.01, beta: 1, kappa, cap: 1 };
+      const predicted = (high / low) ** (population.power / kappa - population.weight);
+      const observed = inkAt(family, hyp, high, rMin) / inkAt(family, hyp, low, rMin);
+      expect(observed / predicted, JSON.stringify(family)).toBeGreaterThan(0.75);
+      expect(observed / predicted, JSON.stringify(family)).toBeLessThan(1.3);
     }
   });
 });

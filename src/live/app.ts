@@ -26,8 +26,8 @@ export function startExplorer(canvas: HTMLCanvasElement, hud: HTMLElement, prese
   const renderer = createDiscRenderer(gl);
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
 
-  const { growth } = starscape(preset.spec);
-  const gamma = growth === null ? 0 : zoomExponent(preset.spec.law, growth);
+  const { population } = starscape(preset.spec);
+  const gamma = population === null ? 0 : zoomExponent(preset.spec.law, population);
 
   let view: View = preset.home;
   let generation = 0;
