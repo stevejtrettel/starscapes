@@ -17,6 +17,7 @@ npm run dev                                   # the explorer
 npm test                                      # typecheck + tests
 node scripts/prints/print.ts quadratics       # → outputs/quadratics.png
 node scripts/prints/print.ts cubics width=3600 centre=0.3,0.8 span=0.2 colour=real-root
+node scripts/prints/print.ts quartics                    # irreducible quartics with two real roots
 node scripts/prints/print.ts box degree=5 H=4
 node scripts/prints/print.ts starscape.json width=6000    # a picture saved from the explorer
 ```
@@ -48,7 +49,7 @@ says which test checks which statement.
 | path | what it is |
 |---|---|
 | `src/fibre/` | Tail coordinates on {f(z) = 0}; the tail scan and pencil scan (which constant terms put a root in a window). |
-| `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), coefficient boxes of any degree, planar families; enumeration by symmetry. |
+| `src/catalogue/` | Stars, δ-shells, and the enumerators: quadratics, cubics (all or monic), quartics by size and shape, coefficient boxes and balls of any degree, planar families; enumeration by symmetry; the irreducible stars. |
 | `src/lattice/` | Exact LLL, Fincke–Pohst, and the search for all polynomials of bounded norm with a root near a point: deep zooms in high degree. |
 | `src/modular/` | PSL₂(ℤ): Möbius maps, the tiles meeting a window, exact membership of the fundamental domain. |
 | `src/style/` | The size laws r = c·y^β·δ^(−κ) (visibility, ink, zoom exponent) and the colourings. |

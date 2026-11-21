@@ -136,7 +136,7 @@ theorems.
 ## Added since
 
 - **Recipes** (`src/recipe.ts`): a picture as plain data — family, size
-  law, colouring, filter, view — edited by the explorer, mirrored in the
+  law, colouring, view — edited by the explorer, mirrored in the
   URL, saved as JSON, and read back by the print script. The size constant
   is quoted at a pixel size and follows the zoom law to any other, so a
   recipe is the same picture on screen and in print.
@@ -158,3 +158,14 @@ theorems.
   a lattice (exact LLL, then Fincke–Pohst). Cost independent of the size
   of the box; degree 8 becomes explorable. With it, the **ball** family
   Σ aₖ² ≤ R².
+- **The quartic starscape** (`catalogue/quartics.ts`): a quartic star has
+  a size δ and a shape χ, and the family {δ in a shell, |χ| ≤ τ} is finite
+  on compact windows, invariant under SL₂(ℤ), and has density
+  (πτ/40)·Δ⁵. Direct enumeration, transport, exact tests on the boundary
+  of the fundamental domain and at |χ| = 1; quartic roots by Ferrari.
+- **Irreducible stars as a catalogue.** The flag moved from the recipe (a
+  filter applied to cubics) into the starscape: irreducibility is decided
+  exactly up to degree 4, and for the invariant families the forms with a
+  root at the cusp — all reducible — are not enumerated. This is what
+  makes quartics drawable: near the real axis the reducible ones
+  outnumber the rest by thousands to one.

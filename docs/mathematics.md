@@ -152,6 +152,7 @@ In the notation of §6, the population of a family is
 | quadratics | 3 | 2 |
 | all cubics | 4 | 2 |
 | monic cubics | 3 | 1/2 |
+| quartics of shape \|χ\| ≤ τ (§4.1) | 5 | 2 |
 
 ---
 
@@ -179,21 +180,89 @@ to 10⁴×]**.
 contains finitely many heads over a compact window (one interval for
 d = 2, an ellipse for d = 3). For d ≥ 4 its kernel has dimension d − 3:
 *no* bound on δ, or on any function of |f′(z)| and y, makes the catalogue
-finite. Degree ≥ 4 needs a truncation that sees the whole polynomial. The
-code offers the classical one, and one adapted to the paper:
+finite. Degree ≥ 4 needs a truncation that sees more of the polynomial.
+The code offers three:
 
+- **quartics by size and shape** (§4.1): the one further invariant of a
+  quartic star is bounded along with δ. Invariant under SL₂(ℤ), like
+  bounded discriminant in degrees 2 and 3;
 - **boxes and balls**, max |aₖ| ≤ H or Σ aₖ² ≤ R², in any degree
   (`catalogue/box.ts`);
 - **planes**, f = aP + bQ + cR with bounded integer (a, b, c), for any
   integer polynomials P, Q, R (`catalogue/plane.ts`).
 
 Bounded discriminant is still finite on compact windows for d ≥ 4
-(Birch–Merriman), but there are no usable coefficient bounds; see §9.
+(Birch–Merriman), but not for a reason an enumerator can use: for
+quartics the set {|disc| ≤ X} is unbounded in the coordinates of §4.1.
 
 **Near the real axis.** A shell with e > 0 has no stars below
 y = (δ_min/hi)^(1/e), where δ_min is the least δ an integer polynomial can
 have (|disc| ≥ 3). With e ≤ 0 a window touching the real axis holds
 infinitely many stars, and the enumerators refuse it.
+
+### 4.1 Quartics: size and shape — `catalogue/quartics.ts`
+
+A quartic star has two invariants where a quadratic or cubic star has
+one. For f = a₄x⁴ + … + a₀ and z = s + iy put
+
+    U = f″(s)/2 = a₂ + 3a₃s + 6a₄s²,        w = f‴(s)/6 = a₃ + 4a₄s,
+    P = y²w² + (2a₄y² − U)².
+
+**Proposition 4.1 [tested].** δ² = 4P, and χ := U/√P is invariant under
+SL₂(ℝ). If f has two real roots r₁, r₂ then χ = cos(θ/2) ∈ (−1, 1), θ the
+angle at z between the geodesic rays to r₁ and r₂; if it has a second
+pair z₂, z̄₂ then |χ| = coth d(z, z₂) > 1. The classical invariants are
+
+    I = 4U² − 3P,      J = 2U(8U² − 9P),      disc f = −4(P − U²)·P².
+
+*Proof.* Write f = Q_z·g with Q_z = x² − 2sx + |z|² and g a real
+quadratic, and split g = t·Q_z + g₀ with g₀ apolar to Q_z. Then U = 2y²t
+and P = |g(z)|² = |g₀(z)|², both visibly invariant, and the identities
+need only be computed at z = i. ∎
+
+So δ is the *size* of the star and χ the *shape* of the root
+configuration seen from z. For fixed z and δ the cofactors t·Q_z + g₀,
+t → ∞, are all admissible — the second pair of roots closing in on z — and
+infinitely many are integral in every window. Bounding the shape removes
+them:
+
+    |χ| ≤ 1      exactly the quartics with two real roots;
+    |χ| ≤ τ      also those with a second pair at distance ≥ arcoth τ.
+
+The catalogue is {lo·y^e < δ ≤ hi·y^e, |χ| ≤ τ}. It is a compact region
+of the (P, U)-plane, as is a bound on the height of (I, J) (the truncation
+of Bhargava–Shankar): I and J have no common zero on P = 1, so bounded
+(I, J) bounds P, and then U. The two differ in which compact region.
+
+*Exact boundaries.* |χ| = 1 is populated: it is the quartics with a
+double real root. Since |χ| ≤ 1 ⟺ disc f ≤ 0 and 27·disc = 4I³ − J², the
+case τ = 1 is decided on integers. Also |disc| ≥ 1 gives the least δ of
+the family: 4|P − U²|P² ≥ 1 with |P − U²| ≤ max(1, τ² − 1)·P.
+
+**Proposition 4.2 (density) [tested].** Per unit hyperbolic area, the
+quartic stars with δ ≤ Δ and |χ| ≤ τ number (πτ/40)·Δ⁵, asymptotically.
+
+*Proof.* For fixed z the head (a₄, a₃, a₂) ↦ (p₁, p₂, U) = (yw,
+2a₄y² − U, U) is linear of determinant 2y³, and P = p₁² + p₂². A head
+carries stars of hyperbolic density δ²y³ = 4Py³ (as in Proposition 3.2).
+The condition a₄ > 0 takes half of a region symmetric under f ↦ −f, so
+the count is
+
+    ½ ∫ 4Py³ · dp₁ dp₂ dU / 2y³  =  ½ ∫₀^(Δ²/4) 2P · 2τ√P · π dP  =  πτΔ⁵/40. ∎
+
+The approach is slow, with relative error about −2.5/Δ at y ≈ 1
+(measured: 0.80, 0.88, 0.91, 0.94 of the prediction at Δ = 12, 20, 30,
+42) — the sum over a₄ ≥ 1 misses half the layer a₄ = 0. And it is not
+uniform towards the real axis: see *reducible stars* in §5.5.
+
+*Enumeration.* The formulas confine the head:
+
+    |a₃ + 4a₄s| ≤ √P/y,      |2a₄y² − U| ≤ √P,      |U| ≤ τ√P,
+
+so a₄ ≤ (1 + τ)√P/2y², then a₃, then a₂ = U − 3a₃s − 6a₄s² over a
+parabola in s. For each head a₁ runs over an interval found from the tail
+map and the tail scan (§5.1) gives a₀. Roots are by Ferrari's method
+(§7). About 5–12 µs per star at y ≈ 1.
 
 ---
 
@@ -290,8 +359,8 @@ symmetry (§5.5) and lattice reduction (§5.6).
 
 ### 5.5 Enumeration by symmetry — `modular/`, `catalogue/transport.ts`
 
-For the families invariant under SL₂(ℤ) — all quadratics, all cubics —
-the remedy is the symmetry itself. Let 𝔉 = {|s| ≤ ½, |z| ≥ 1} and call a
+For the families invariant under SL₂(ℤ) — all quadratics, all cubics,
+quartics of bounded shape — the remedy is the symmetry itself. Let 𝔉 = {|s| ≤ ½, |z| ≥ 1} and call a
 form *reduced* if its root lies in 𝔉. Since the group acts compatibly on
 forms and roots and δ is invariant,
 
@@ -323,11 +392,43 @@ carry the signs of |z| − 1, s, s − ½, s + ½ (Mathews; Belabas, Lemma 4.2)
 **[tested]**. At the elliptic points i and ρ, fixed by S and by ST, a
 star is seen from 2 or 3 tiles; the least γ in a fixed order keeps it.
 
+A quartic has no such classical criterion (and may have two pairs of
+roots, so the root must be named), but the question "is this root on the
+imaginary axis" is one about integers: g(iv) = 0 iff the even and odd
+parts of g vanish together at −v², which for g₃ ≠ 0 is
+g₄g₁² − g₂g₁g₃ + g₀g₃² = 0. Each curve of ∂𝔉 is moved to the imaginary
+axis by an integer substitution — x ∓ ½ for the sides, the Cayley map
+w = (z − 1)/(z + 1) for the arc — and the test applied when floating
+point puts the root within 10⁻⁷ of the curve **[tested]**.
+
 *Infinity.* A reduced binary form may have a root at ∞, so that as a
 polynomial its degree drops, and still be carried to a polynomial of full
 degree. For cubics these are y·(bx² + cxy + dy²): the reducible cubics
 whose rational root sits at the cusp of their tile. They are the quadratic
-catalogue with δ = 2b·√y, the case a = 0 of the formula for δ.
+catalogue with δ = 2b·√y, the case a = 0 of the formula for δ. A quartic
+form can have one root at ∞ (y times a cubic, δ = δ_cubic/√y, |χ| ≤ 1) or
+two (y² times a quadratic bx² + …, δ = 2b, χ = 1).
+
+*Reducible stars.* So the cusp of a tile holds reducible stars and
+nothing else, and they are many. In a fixed window, as Δ → ∞, reducible
+stars are of lower order (at Δ = 18, 30% of the quartic stars around
+z = i have a rational root; the total is as Proposition 4.2 says). But
+per tile they are not. For cubics they are of the order Δ⁴ of the
+irreducible ones — in the strip 0.01 ≤ y ≤ 1.2 with 2 < δ ≤ 6, three
+times as many. For quartics a tile holds *infinitely* many: the forms
+y²·Q have δ = 2b at every height, i.e. the polynomials (qx − p)²·Q(x)
+with Q a quadratic whose root is close to p/q have bounded δ. Near the
+real axis, where tiles are small and wholly in view, the quartic family
+is almost entirely these (in 0 ≤ s ≤ 1, 0.02 ≤ y ≤ 0.04 at Δ = 5:
+880 thousand stars, 320 of them irreducible).
+
+A picture of quartics is therefore a picture of the irreducible ones,
+and these are a catalogue in their own right (`irreducibleCubics`,
+`irreducibleQuartics`): the cusp forms are not enumerated at all, and the
+remaining stars are tested exactly (§7) **[tested against the full
+catalogue, sieved]**. The wide quartic view has 4·10⁵ irreducible stars
+and takes 16 seconds; with the reducible ones it did not finish in
+five minutes.
 
 *Shells.* For e ≠ 0 the bound hi·y′^e refers to the height y′ of the
 carried star. The piece of 𝔉 behind a tile is cut into cells over which
@@ -338,7 +439,9 @@ A carried star is completed from its integer coefficients by the same
 code as a directly enumerated one, so the two methods produce identical
 stars **[tested: equal as sets, coordinates bit for bit]**, and a window
 can be split between them: `allQuadratics` and `allCubics` use the direct
-loops above a crossover height and transport below it. Coefficients grow
+loops above a crossover height and transport below it, `allQuartics`
+transport everywhere below y = 1 (it is the faster at every height
+measured). Coefficients grow
 with the depth of the tile, like q^d for a tile at the cusp p/q; beyond
 2⁵³ they are no longer exact in float64 and the star is placed by the
 Möbius map instead (its position and size stay correct).
@@ -467,11 +570,20 @@ enumeration order never matters.
   range; any degree exactly, by Bareiss elimination on the Sylvester
   matrix in BigInt. Used to decide f′(z) = 0 (a repeated root is not a
   star) where floating point cannot.
-- `rationalRoot.ts`: a cubic is reducible iff it has a rational root p/q,
-  q | a_d; the known real root nominates p = round(q·r) and the candidate
-  is verified by the integer q^d·f(p/q).
+- `rationalRoot.ts`: irreducibility over ℚ up to degree 4, from
+  approximate roots and exact tests. A rational root is p/q with q | a_d:
+  a real root r nominates p = round(q·r), verified by the integer
+  q^d·f(p/q). A complex root z is quadratic over ℚ iff
+  α(x² − 2sx + |z|²) is integral and divides f for some α | a_d (Gauss's
+  lemma), verified by division in integers. A cubic is reducible iff it
+  has a rational root; a quartic iff it has one or its root z is
+  quadratic.
 - `closedForm.ts`: quadratics and cubics, branching on the exact sign of
-  the discriminant. `aberth.ts`: the Aberth–Ehrlich iteration for d ≥ 4.
+  the discriminant; quartics by Ferrari's method (a positive root of the
+  resolvent cubic splits the quartic into two real quadratics), polished
+  by Newton's method and accepted only if the roots satisfy Vieta's
+  relations. `aberth.ts`: the Aberth–Ehrlich iteration, for d ≥ 5 and as
+  the fallback for quartics.
 - `realRoots.ts`: real roots in an interval by recursion on the derivative
   (monotone pieces, then safeguarded Newton) — the edge solver of §5.
 
@@ -493,6 +605,12 @@ enumeration order never matters.
 | a catalogue is independent of how the window is cut (tangencies, boundary stars) | `catalogue.test` | the uncut window |
 | Möbius image boxes; tiles meeting a window; exact position in 𝔉 | `modular.test` | dense sampling; the reduction algorithm |
 | transport ≡ direct enumeration, quadratics and cubics | `modular.test` | the direct catalogues, star for star |
+| Prop. 4.1: δ² = 4P, χ and the root configuration, I, J, disc | `quartic.test` | random quartics built from their roots; exact discriminant |
+| quartic catalogue, τ = 1, 1.5, a middle shell | `quartic.test` | brute force over coefficient boxes |
+| Prop. 4.2, quartic density | `quartic.test` | counts |
+| exact position of a quartic's root in 𝔉; transport ≡ direct, quartics, including \|χ\| = τ exactly | `quartic.test` | examples on ∂𝔉; the direct catalogue, star for star |
+| irreducibility from one root, degrees 3 and 4 | `irreducible.test` | trial division by every small integer factor |
+| irreducible cubics and quartics | `irreducible.test` | the full catalogues, sieved |
 | LLL (same lattice, reduced); Fincke–Pohst | `lattice.test` | Gram determinants, Gram–Schmidt; brute force |
 | Lemma 5.3: every polynomial of the ball with a root in the disc is found | `lattice.test` | solving every polynomial of the ball |
 | box and ball: lattice ≡ heads | `lattice.test` | each other, star for star |
@@ -505,9 +623,12 @@ enumeration order never matters.
 
 ## 9. Not done
 
-1. **Quartics by invariants.** Bounded (I, J), equivalently bounded Julia
-   invariant, is an SL₂(ℤ)-invariant truncation with compact fibres
-   (Cremona; Bhargava–Shankar), the analogue of bounded discriminant.
+1. **Size and shape in degree ≥ 5.** The kernel of head ↦ f′(z) has
+   dimension d − 3, so a star of degree d has d − 3 shape parameters
+   beyond δ (for a quintic: the cofactor of Q_z is a cubic, with two
+   invariants relative to z). Bounding them should give SL₂(ℤ)-invariant
+   catalogues in every degree, as §4.1 does for quartics; the head loops
+   and the reduction theory would need working out.
 2. **Certified roots.** Roots from `aberth.ts` are not certified; Smith's
    disc bound with a running error estimate would certify isolation and
    the real/non-real split in float64.

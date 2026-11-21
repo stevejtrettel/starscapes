@@ -143,6 +143,12 @@ Davenport–Heilbronn maximality test on top of the reduced forms.
 **Bhargava–Yang** ([arXiv:1312.7339](https://arxiv.org/abs/1312.7339)) **[read]**
 Shintani zeta residues; counting quartic forms by height H(I, J); counting
 forms of any degree by Julia invariant.
+*Used for:* the comparison in mathematics.md §4.1. The quartic catalogue
+bounds the size δ and the shape χ of a star, in terms of which
+I = 4U² − 3P and J = 2U(8U² − 9P) with P = δ²/4, U = χ√P; a bound on
+H(I, J) is another compact region of the same plane. Bhargava–Shankar
+also meet the reducible forms in the cusp, and cut it off as the code
+does (mathematics.md §5.5, *reducible stars*).
 
 ---
 

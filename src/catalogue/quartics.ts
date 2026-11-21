@@ -36,6 +36,10 @@
  *
  * The stars with δ ≤ Δ and |χ| ≤ τ number (πτ/40)·Δ⁵ per unit hyperbolic
  * area (test/quartic.test.ts), so D = 5 in the ink laws of style/sizeLaw.ts.
+ * That is for a fixed window as Δ → ∞. It is not uniform towards the real
+ * axis, where the family is almost entirely reducible — (qx − p)²·Q(x)
+ * has bounded δ for infinitely many quadratics Q with a root near p/q —
+ * and what one draws is the irreducible stars (catalogue/transport.ts).
  *
  * ENUMERATION. The head (a₄, a₃, a₂) is confined by the formulas above:
  *
