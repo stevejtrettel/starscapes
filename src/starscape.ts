@@ -12,6 +12,7 @@ import { plane } from "./catalogue/plane.ts";
 import { quarticDeltaMin } from "./catalogue/quartics.ts";
 import type { Catalogue, Star } from "./catalogue/star.ts";
 import { allCubics, allQuadratics, allQuartics, irreducibleCubics, irreducibleQuartics } from "./catalogue/transport.ts";
+import { GALOIS_GROUPS, type GaloisGroup, galoisGroup } from "./poly/galois.ts";
 import { isIrreducible } from "./poly/rationalRoot.ts";
 import { naturalRadius, type Population, radius, type SizeLaw, shellOfRadii } from "./style/sizeLaw.ts";
 
@@ -37,8 +38,10 @@ export type Family =
 export interface StarscapeSpec {
   readonly family: Family;
   readonly law: SizeLaw;
-  /** Only the stars of polynomials irreducible over ℚ (degree ≤ 4). */
+  /** Only the stars of polynomials irreducible over ℚ (degree ≤ 5). */
   readonly irreducible?: boolean;
+  /** Only the stars of irreducible polynomials with one of these Galois groups (degree ≤ 5). */
+  readonly galois?: readonly GaloisGroup[];
 }
 
 export interface Starscape {
@@ -55,17 +58,39 @@ export interface Starscape {
 }
 
 export function starscape(spec: StarscapeSpec): Starscape {
+  const scape = build(spec);
+  if (spec.irreducible === true || spec.galois !== undefined) {
+    const d = scape.degree;
+    if (d > 5) throw new Error("irreducible stars and Galois groups are implemented only up to degree 5");
+    const foreign = spec.galois?.find((g) => !GALOIS_GROUPS[d].includes(g));
+    if (foreign) throw new Error(`${foreign} is not a Galois group of degree ${d}: choose from ${GALOIS_GROUPS[d].join(", ")}`);
+  }
+  return scape;
+}
+
+function build(spec: StarscapeSpec): Starscape {
   const { family, law } = spec;
-  const irreducible = spec.irreducible === true;
+  const groups = spec.galois;
+  const irreducible = spec.irreducible === true || groups !== undefined;
   const draw = (star: Star): number => radius(law, star);
 
-  /** The catalogue, or its irreducible stars by the exact test of poly/rationalRoot.ts. */
-  const sieve = (degree: number, all: Catalogue): Catalogue => {
-    if (!irreducible || degree === 2) return all; // a quadratic with a complex root is irreducible
-    if (degree > 4) throw new Error("irreducible stars are implemented only up to degree 4");
+  /**
+   * The catalogue restricted as the spec asks: to irreducible polynomials
+   * (poly/rationalRoot.ts) and to given Galois groups (poly/galois.ts).
+   * `known` says the catalogue holds only irreducible ones already.
+   */
+  const sieve = (degree: number, all: Catalogue, known = false): Catalogue => {
+    if (!irreducible) return all;
+    // A quadratic with a complex root is irreducible, with group C₂.
+    if (degree === 2) return groups && !groups.includes("C2") ? () => {} : all;
     return (W, visit) =>
       all(W, (star) => {
-        if (isIrreducible(star.f, star.s, star.y)) visit(star);
+        if (!known && !isIrreducible(star.f, star.s, star.y)) return;
+        if (groups) {
+          const group = galoisGroup(star.f);
+          if (group === undefined || !groups.includes(group)) return;
+        }
+        visit(star);
       });
   };
 
@@ -93,7 +118,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
         spec,
         degree: 2,
         population: { power: 3, weight: 2 }, // Δ³/6 per unit hyperbolic area
-        stars: (rMin, rMax) => allQuadratics(shellOfRadii(law, rMin, rMax)),
+        stars: (rMin, rMax) => sieve(2, allQuadratics(shellOfRadii(law, rMin, rMax))),
         radius: draw,
         // δ = 2ay ≥ 2y, and δ = √|disc| ≥ √3.
         radiusBound: boundFrom((y) => Math.max(2 * y, Math.sqrt(3))),
@@ -108,7 +133,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
           const shell = shellOfRadii(law, rMin, rMax);
           // The monic cubics are invariant under translations only: no transport.
           if (family.monic) return sieve(3, cubics(shell, { monic: true }));
-          return irreducible ? irreducibleCubics(shell) : allCubics(shell);
+          return irreducible ? sieve(3, irreducibleCubics(shell), true) : allCubics(shell);
         },
         radius: draw,
         // δ² = 4y[(b + 3as)² + a²y²] ≥ 4y³, and δ⁴ = 4|disc| ≥ 12.
@@ -121,7 +146,7 @@ export function starscape(spec: StarscapeSpec): Starscape {
         population: { power: 5, weight: 2 }, // (πτ/40)·Δ⁵ per unit hyperbolic area
         stars: (rMin, rMax) => {
           const shell = shellOfRadii(law, rMin, rMax);
-          return irreducible ? irreducibleQuartics(shell, family.tau) : allQuartics(shell, family.tau);
+          return irreducible ? sieve(4, irreducibleQuartics(shell, family.tau), true) : allQuartics(shell, family.tau);
         },
         radius: draw,
         // |2a₄y² − U| ≤ √P and |U| ≤ τ√P give δ = 2√P ≥ 4y²/(1 + τ).

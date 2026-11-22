@@ -10,8 +10,9 @@
  *          c=  kappa=  beta=             override the size law r = c·y^β·δ^(−κ);
  *                                        c is taken as quoted at this image's pixel size
  *          faintest=0.3                  radius in pixels of the smallest stars
- *          colour=ink|leading|discriminant|height|real-root|shape
- *          irreducible=0|1               only polynomials irreducible over ℚ (degree ≤ 4)
+ *          colour=ink|leading|discriminant|height|real-root|shape|galois
+ *          irreducible=0|1               only polynomials irreducible over ℚ (degree ≤ 5)
+ *          galois=D4,C4|any              only irreducible polynomials with these Galois groups
  *          compositing=opaque|additive
  *          degree=4  H=6  monic=0        for `box`
  *          out=outputs/<name>.png
@@ -64,6 +65,9 @@ recipe = parseRecipe({
     family: recipe.spec.family,
     law: { c: num("c", law.c), beta: num("beta", law.beta), kappa: num("kappa", law.kappa), cap: law.cap },
     irreducible: num("irreducible", recipe.spec.irreducible ? 1 : 0) === 1,
+    ...(arg.galois === undefined
+      ? recipe.spec.galois ? { galois: recipe.spec.galois } : {}
+      : arg.galois === "any" ? {} : { galois: arg.galois.split(",") }),
   },
   faintest: num("faintest", recipe.faintest),
   colouring: arg.colour ?? recipe.colouring,

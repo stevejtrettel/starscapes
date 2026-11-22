@@ -3,6 +3,7 @@
  * magnitude limit, the colouring, and the buttons. It holds no state of
  * its own — it reports edits and is told what to display.
  */
+import { GALOIS_GROUPS, type GaloisGroup } from "../poly/galois.ts";
 import type { Recipe } from "../recipe.ts";
 import { starscape } from "../starscape.ts";
 import { COLOURINGS, type Colouring } from "../style/colour.ts";
@@ -13,6 +14,8 @@ export interface ControlHandlers {
   faintest(pixels: number): void;
   colouring(colouring: Colouring): void;
   irreducible(on: boolean): void;
+  /** Only this Galois group, or null for all. */
+  galois(group: GaloisGroup | null): void;
   /** Set β to the value that evens the ink down the page. */
   even(): void;
   home(): void;
@@ -73,8 +76,14 @@ export function createControls(panel: HTMLElement, recipe: Recipe, on: ControlHa
   const irreducible = document.createElement("input");
   irreducible.type = "checkbox";
   irreducible.addEventListener("change", () => on.irreducible(irreducible.checked));
-  const degree = starscape({ ...recipe.spec, irreducible: false }).degree;
-  if (degree === 3 || degree === 4) row("irreducible only", irreducible);
+  const degree = starscape({ family: recipe.spec.family, law: recipe.spec.law }).degree;
+  if (degree >= 3 && degree <= 5) row("irreducible only", irreducible);
+
+  const galois = document.createElement("select");
+  galois.add(new Option("all", ""));
+  for (const group of GALOIS_GROUPS[degree] ?? []) galois.add(new Option(group, group));
+  galois.addEventListener("change", () => on.galois(galois.value === "" ? null : (galois.value as GaloisGroup)));
+  if (degree >= 3 && degree <= 5) row("Galois group", galois);
 
   const buttons = document.createElement("div");
   buttons.append(
@@ -92,7 +101,9 @@ export function createControls(panel: HTMLElement, recipe: Recipe, on: ControlHa
       beta.set(law.beta);
       faintest.set(current.faintest);
       colouring.value = current.colouring;
-      irreducible.checked = current.spec.irreducible === true;
+      irreducible.checked = current.spec.irreducible === true || current.spec.galois !== undefined;
+      // A recipe may ask for several groups; the menu shows one, or "all".
+      galois.value = current.spec.galois?.length === 1 ? current.spec.galois[0] : "";
     },
   };
 }

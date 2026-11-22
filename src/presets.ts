@@ -88,6 +88,31 @@ export const PRESETS = {
     { irreducible: true, colouring: "shape" },
   ),
 
+  // The quartics of the picture above with a Galois group other than S₄.
+  // They gather on geodesics: an even quartic x⁴ + bx² + d has group ⊆ D₄,
+  // and with two real roots its star is on the imaginary axis, which
+  // PSL₂(ℤ) carries to every rational geodesic. (With two real roots the
+  // group can only be S₄ or D₄: complex conjugation is a transposition.)
+  "quartics-galois": preset(
+    "quartics with Galois group D₄, C₄, V₄ or A₄",
+    {
+      family: { kind: "quartics", tau: 2 },
+      law: { c: 0.075, beta: 1 / 2, kappa: 5 / 3, cap: 0.5 },
+      galois: ["D4", "C4", "V4", "A4"],
+    },
+    SQUARE,
+    { colouring: "galois" },
+  ),
+
+  // Quintics with a non-generic group: solvable (D₅, F₂₀) or A₅. No C₅
+  // appears: a cyclic quintic is totally real.
+  "quintics-galois": preset(
+    "quintics of height ≤ 4 with Galois group D₅, F₂₀ or A₅",
+    { family: { kind: "box", degree: 5, height: 4, monic: false }, law: hyperbolic(0.09, 1), galois: ["D5", "F20", "A5"] },
+    SQUARE,
+    { colouring: "galois" },
+  ),
+
   "quartic-box": preset(
     "integer quartics of height ≤ 5",
     { family: { kind: "box", degree: 4, height: 5, monic: false }, law: hyperbolic(0.04, 1) },

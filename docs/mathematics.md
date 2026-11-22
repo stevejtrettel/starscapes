@@ -570,14 +570,15 @@ enumeration order never matters.
   range; any degree exactly, by Bareiss elimination on the Sylvester
   matrix in BigInt. Used to decide f′(z) = 0 (a repeated root is not a
   star) where floating point cannot.
-- `rationalRoot.ts`: irreducibility over ℚ up to degree 4, from
+- `rationalRoot.ts`: irreducibility over ℚ up to degree 5, from
   approximate roots and exact tests. A rational root is p/q with q | a_d:
   a real root r nominates p = round(q·r), verified by the integer
   q^d·f(p/q). A complex root z is quadratic over ℚ iff
   α(x² − 2sx + |z|²) is integral and divides f for some α | a_d (Gauss's
   lemma), verified by division in integers. A cubic is reducible iff it
   has a rational root; a quartic iff it has one or its root z is
-  quadratic.
+  quadratic; a quintic iff it has one or a quadratic factor, whose roots
+  are a conjugate pair or two real roots of f.
 - `closedForm.ts`: quadratics and cubics, branching on the exact sign of
   the discriminant; quartics by Ferrari's method (a positive root of the
   resolvent cubic splits the quartic into two real quadratics), polished
@@ -586,6 +587,54 @@ enumeration order never matters.
   the fallback for quartics.
 - `realRoots.ts`: real roots in an interval by recursion on the derivative
   (monotone pieces, then safeguarded Newton) — the edge solver of §5.
+- `galois.ts`, `frobenius.ts`: Galois groups, §7.1.
+
+### 7.1 Galois groups — `poly/galois.ts`
+
+The Galois group of an irreducible polynomial of degree ≤ 5 is decided
+exactly, as in Cohen (*A Course in Computational Algebraic Number
+Theory*, §6.3): approximate roots nominate a rational root of a
+resolvent, and integers confirm it.
+
+- d = 3: C₃ iff disc f is a square.
+- d = 4: the resolvent cubic, with roots α₁α₂ + α₃α₄ and its conjugates,
+  has 0, 1 or 3 rational roots; 0 gives A₄ or S₄ by the square class of
+  the discriminant, 3 gives V₄, and 1 gives C₄ or D₄ by Kappe–Warren.
+- d = 5: θ = Σ x₁²(x₂x₅ + x₃x₄) has stabiliser F₂₀ = AGL₁(𝔽₅), so its six
+  conjugates are the roots of a sextic R ∈ ℤ[p, q, r, s] for the
+  depressed quintic x⁵ + px³ + qx² + rx + s. Gal f ⊆ F₂₀ — f is solvable
+  by radicals — iff R has a simple rational root (a multiple root calls
+  for a Tschirnhaus transformation, done exactly with power sums). The
+  coefficients of R were derived by exact interpolation
+  (`scripts/derive/f20-resolvent.py`), which also checks them.
+  Solvable and square discriminant leaves D₅ or C₅; a factorisation of
+  type (2, 2, 1) modulo some prime proves D₅, and C₅ is declared when 200
+  primes show none. This is the one statement in the code that rests on
+  Chebotarev density rather than proof.
+
+**Tests.** By Dedekind and Chebotarev the factorisation patterns of f
+modulo primes are the cycle types of Gal f, each with its proportion, and
+in degree ≤ 5 the set of cycle types determines the group. That is the
+oracle: for every irreducible polynomial of degree 3, 4, 5 in small boxes
+(height 4, 2, 1, several leading coefficients), the computed group equals
+the one read off the factorisations modulo the primes below 2500 or 4000
+**[tested]**.
+
+**Complex conjugation.** A star needs a non-real root, and complex
+conjugation is an element of Gal f with one transposition for each pair
+of complex roots. So:
+
+- every cubic star has group S₃ (C₃ has no transposition; cyclic cubics
+  are totally real);
+- a quartic with two real roots has group S₄ or D₄ **[tested]**. C₄, V₄
+  and A₄ appear only among quartics with two complex pairs (|χ| > 1);
+- no quintic star has group C₅.
+
+In the wide quartic view with |χ| ≤ 2 the proportions are S₄ 93%, D₄ 6.2%,
+A₄ 0.40%, V₄ 0.28%, C₄ 0.14%. The D₄ stars gather on geodesics. An even
+quartic x⁴ + bx² + d has group contained in D₄, and when it has two real
+roots ±r its non-real roots are ±iy, so its star is on the imaginary axis;
+PSL₂(ℤ) carries the axis to every geodesic between rationals.
 
 ---
 
@@ -611,6 +660,8 @@ enumeration order never matters.
 | exact position of a quartic's root in 𝔉; transport ≡ direct, quartics, including \|χ\| = τ exactly | `quartic.test` | examples on ∂𝔉; the direct catalogue, star for star |
 | irreducibility from one root, degrees 3 and 4 | `irreducible.test` | trial division by every small integer factor |
 | irreducible cubics and quartics | `irreducible.test` | the full catalogues, sieved |
+| factorisation patterns mod p | `galois.test` | counting roots mod p |
+| Galois groups, degrees 3–5 | `galois.test` | textbook examples; Frobenius cycle types (Dedekind, Chebotarev) |
 | LLL (same lattice, reduced); Fincke–Pohst | `lattice.test` | Gram determinants, Gram–Schmidt; brute force |
 | Lemma 5.3: every polynomial of the ball with a root in the disc is found | `lattice.test` | solving every polynomial of the ball |
 | box and ball: lattice ≡ heads | `lattice.test` | each other, star for star |

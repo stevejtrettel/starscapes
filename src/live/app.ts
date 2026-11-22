@@ -58,7 +58,7 @@ export function startExplorer(
   /** Edits of the law apply to the law as it is at the current zoom. */
   const editLaw = (change: Partial<SizeLaw>): void => {
     const here = requote(recipe, pixel());
-    edit({ ...here, spec: { family: here.spec.family, law: { ...here.spec.law, ...change } } });
+    edit({ ...here, spec: { ...here.spec, law: { ...here.spec.law, ...change } } });
   };
 
   const controls = createControls(panel, recipe, {
@@ -66,6 +66,10 @@ export function startExplorer(
     faintest: (faintest) => edit({ ...recipe, faintest }),
     colouring: (colouring) => edit({ ...recipe, colouring }),
     irreducible: (irreducible) => edit({ ...recipe, spec: { ...recipe.spec, irreducible } }),
+    galois(group) {
+      const { galois: _, ...spec } = recipe.spec;
+      edit({ ...recipe, spec: group ? { ...spec, galois: [group] } : spec });
+    },
     even() {
       const { population } = starscape(recipe.spec);
       if (population) editLaw({ beta: evenBeta(recipe.spec.law.kappa, population) });

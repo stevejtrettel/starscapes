@@ -18,6 +18,8 @@ npm test                                      # typecheck + tests
 node scripts/prints/print.ts quadratics       # → outputs/quadratics.png
 node scripts/prints/print.ts cubics width=3600 centre=0.3,0.8 span=0.2 colour=real-root
 node scripts/prints/print.ts quartics                    # irreducible quartics with two real roots
+node scripts/prints/print.ts quartics-all colour=galois  # coloured by Galois group
+node scripts/prints/print.ts quartic-box galois=D4,C4    # only the dihedral and cyclic quartics
 node scripts/prints/print.ts box degree=5 H=4
 node scripts/prints/print.ts starscape.json width=6000    # a picture saved from the explorer
 ```

@@ -49,7 +49,7 @@ describe("irreducibility over ℚ from one complex root", () => {
     expect(isIrreducible([1, -4, 5, -4, 4], 0, 1)).toBe(false);
   });
 
-  for (const d of [3, 4]) {
+  for (const d of [3, 4, 5]) {
     it(`agrees with trial division on random polynomials of degree ${d}`, () => {
       const rand = lcg(100 + d);
       const [re, im] = [new Float64Array(d), new Float64Array(d)];
@@ -106,6 +106,6 @@ describe("the irreducible catalogues", () => {
     const product = starKey({ f: Float64Array.of(1, 0, 1, 0, 1), s: 0.5, y: Math.sqrt(3) / 2, slope: 0 });
     expect(all).toContain(product);
     expect(some.has(product)).toBe(false);
-    expect(() => starscape({ family: { ...family, degree: 5 }, law: hyperbolic(0.1), irreducible: true })).toThrow(/degree 4/);
+    expect(() => starscape({ family: { ...family, degree: 6 }, law: hyperbolic(0.1), irreducible: true })).toThrow(/degree 5/);
   });
 });

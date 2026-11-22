@@ -169,3 +169,10 @@ theorems.
   root at the cusp — all reducible — are not enumerated. This is what
   makes quartics drawable: near the real axis the reducible ones
   outnumber the rest by thousands to one.
+- **Galois groups** (`poly/galois.ts`, `poly/frobenius.ts`) of irreducible
+  polynomials of degree 2 to 5, decided on integers: a colouring, a filter
+  (`galois` in a starscape or recipe, a menu in the explorer), and two
+  presets. Tested against the factorisation patterns modulo primes. A
+  star's group must contain complex conjugation, which rules out C₃, and
+  C₄, V₄, A₄ for quartics with two real roots, and C₅.
+- Fixed: editing the size law in the explorer dropped the irreducible flag.

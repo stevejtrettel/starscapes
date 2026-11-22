@@ -10,6 +10,7 @@
  * a screen and on a large print.
  */
 import type { View } from "./fibre/window.ts";
+import { GALOIS_GROUPS, type GaloisGroup } from "./poly/galois.ts";
 import { type Family, type StarscapeSpec, starscape } from "./starscape.ts";
 import { COLOURINGS, type Colouring } from "./style/colour.ts";
 import { type SizeLaw, zoomExponent } from "./style/sizeLaw.ts";
@@ -109,7 +110,14 @@ export function parseRecipe(value: unknown): Recipe {
   const faintest = number(r.faintest, "faintest");
   if (!(view.height > 0 && pixel > 0 && faintest > 0)) fail("view height, pixel and faintest must be positive");
 
-  const checked: StarscapeSpec = { family, law, irreducible: spec.irreducible === true };
+  let galois: GaloisGroup[] | undefined;
+  if (spec.galois !== undefined) {
+    const all = Object.values(GALOIS_GROUPS).flat();
+    galois = Array.isArray(spec.galois) && spec.galois.length > 0
+      ? spec.galois.map((g) => all.find((name) => name === g) ?? fail(`unknown Galois group ${JSON.stringify(g)}`))
+      : fail("galois is not a list of groups");
+  }
+  const checked: StarscapeSpec = { family, law, irreducible: spec.irreducible === true, ...(galois ? { galois } : {}) };
   try {
     starscape(checked);
   } catch (error) {

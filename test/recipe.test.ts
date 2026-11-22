@@ -37,11 +37,15 @@ describe("recipes", () => {
     }
   });
 
-  it("a recipe carries the irreducible flag, and refuses it above degree 4", () => {
+  it("a recipe carries the irreducible flag and Galois groups, and refuses them above degree 5", () => {
     expect(parseRecipe(JSON.parse(JSON.stringify(PRESETS.quartics))).spec.irreducible).toBe(true);
     expect(parseRecipe(JSON.parse(JSON.stringify(PRESETS.quadratics))).spec.irreducible).toBe(false);
+    const sextics = PRESETS["sextics-deep"];
+    expect(() => parseRecipe({ ...sextics, spec: { ...sextics.spec, irreducible: true } })).toThrow(/degree 5/);
+    expect(parseRecipe(JSON.parse(JSON.stringify(PRESETS["quintics-galois"]))).spec.galois).toEqual(["D5", "F20", "A5"]);
     const quintics = PRESETS.quintics;
-    expect(() => parseRecipe({ ...quintics, spec: { ...quintics.spec, irreducible: true } })).toThrow(/degree 4/);
+    expect(() => parseRecipe({ ...quintics, spec: { ...quintics.spec, galois: ["D4"] } })).toThrow(/not a Galois group/);
+    expect(() => parseRecipe({ ...quintics, spec: { ...quintics.spec, galois: ["Q8"] } })).toThrow(/unknown Galois group/);
   });
 
   it("finite families do not rescale", () => {

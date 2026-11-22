@@ -12,6 +12,10 @@
  *   shape          quartics: the shape χ (catalogue/quartics.ts) — the angle
  *                  at z between the rays to the two real roots, on a hue
  *                  wheel; quartics with a second pair of roots in a ramp.
+ *   galois         degrees 3 to 5: the Galois group (poly/galois.ts). The
+ *                  generic group Sₙ in slate, Aₙ blue, the dihedral groups
+ *                  amber, the cyclic ones crimson, V₄ green, F₂₀ teal;
+ *                  reducible polynomials pale grey.
  *   real-root      cubics: the real root r. It lives on the circle
  *                  ℝ ∪ {∞} = ∂ℍ, on which PSL₂(ℝ) acts, so it is shown on a
  *                  hue wheel through the angle 2·atan(r) (HST Fig. 1c).
@@ -19,9 +23,11 @@
 import { realRoot } from "../catalogue/cubics.ts";
 import { quarticShape } from "../catalogue/quartics.ts";
 import { delta, type Star } from "../catalogue/star.ts";
+import { type GaloisGroup, galoisGroup } from "../poly/galois.ts";
 import { height } from "../poly/poly.ts";
+import { isIrreducible } from "../poly/rationalRoot.ts";
 
-export const COLOURINGS = ["ink", "leading", "discriminant", "height", "real-root", "shape"] as const;
+export const COLOURINGS = ["ink", "leading", "discriminant", "height", "real-root", "shape", "galois"] as const;
 export type Colouring = (typeof COLOURINGS)[number];
 
 /** Writes the star's colour, components in [0, 1], to rgb[0..2]. */
@@ -56,6 +62,24 @@ const WHEEL = table((t) => oklch(0.55, 0.16, t));
 
 const INK = 0.05;
 
+const GENERIC = oklch(0.36, 0.03, 0.72);
+const GROUP_COLOURS: Record<GaloisGroup, [number, number, number]> = {
+  C2: GENERIC,
+  S3: GENERIC,
+  S4: GENERIC,
+  S5: GENERIC,
+  A4: oklch(0.55, 0.15, 0.7),
+  A5: oklch(0.55, 0.15, 0.7),
+  D4: oklch(0.66, 0.16, 0.18),
+  D5: oklch(0.66, 0.16, 0.18),
+  C3: oklch(0.55, 0.2, 0.06),
+  C4: oklch(0.55, 0.2, 0.06),
+  C5: oklch(0.55, 0.2, 0.06),
+  V4: oklch(0.6, 0.15, 0.42),
+  F20: oklch(0.6, 0.11, 0.53),
+};
+const REDUCIBLE = oklch(0.85, 0, 0);
+
 /** 1 − (unit/x)^(1/2): 0 at x = unit, tending to 1 — a ramp position for an unbounded quantity. */
 const saturating = (x: number, unit: number): number => 1 - Math.sqrt(unit / Math.max(x, unit));
 
@@ -81,6 +105,19 @@ export function paint(colouring: Colouring): Paint {
     case "real-root": {
       const wheel = from(WHEEL, (star) => 0.5 + Math.atan(realRoot(star)) / Math.PI);
       return (star, rgb) => (star.f.length === 4 ? wheel(star, rgb) : ink(star, rgb));
+    }
+    case "galois": {
+      const set = (rgb: Float32Array | Float64Array, c: [number, number, number]): void => {
+        rgb[0] = c[0];
+        rgb[1] = c[1];
+        rgb[2] = c[2];
+      };
+      return (star, rgb) => {
+        const d = star.f.length - 1;
+        if (d < 3 || d > 5) ink(star, rgb);
+        else if (!isIrreducible(star.f, star.s, star.y)) set(rgb, REDUCIBLE);
+        else set(rgb, GROUP_COLOURS[galoisGroup(star.f) ?? "S5"]);
+      };
     }
     case "shape": {
       // χ = cos(θ/2): the angle θ ∈ (0, 2π) between the rays to the two real
